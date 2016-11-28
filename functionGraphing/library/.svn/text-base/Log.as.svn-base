@@ -1,0 +1,427 @@
+/**
+ * <p><code>Log</code> is a helper class for plotting logarithmic functions of the form</p>
+ * 
+ * <p>a*log(cx) + d</p>
+ *
+ * <p>where the log is taken base-b.  This function takes parameters <code>a</code>, <code>b</code>, <code>c</code> and <code>d</code>, with <code>a = 1</code>, <code>b = e</code>, 
+ * <code>c = 1</code>, and <code>d = 0</code> as defaults.  This function is self-plotting and setting any parameter forces a redraw.</p>
+ *
+ * @author Jim Armstrong
+ * @version 1.0
+ *
+ * @keyword function logarithm
+ * 
+ */
+
+package com.explorelearning.hilo.display.graphing.functions.library
+{
+	 import com.explorelearning.hilo.display.graphing.functions.FunctionTypeEnum;
+	 import com.explorelearning.hilo.display.graphing.functions.QuadrantEnum;
+	 
+  import flash.utils.getDefinitionByName;
+  import flash.utils.getQualifiedClassName;
+  import flash.display.Sprite;
+  import flash.display.Graphics;
+	 
+	 public class Log extends BaseFunction
+	 { 
+	   private static const E:String = "e";
+	   
+	   // parameters
+	   protected var _base:String
+	   protected var _a:Number;
+	   protected var _b:Number;
+	   protected var _c:Number;
+	   protected var _d:Number;
+	   
+	   // cache inverse of ln(base) for use in evaluation
+	   protected var _baseInv:Number;
+	   
+	   // cache parent reference and unit->px conversion
+	   protected var _myParent:Sprite;
+	   protected var _pxPerUnitX:Number;
+	   protected var _pxPerUnitY:Number;
+	   
+/**
+ * <code>Log</code> Construct a new Log instance
+ *
+ * @return Nothing
+ * 
+ */
+	   public function Log():void
+	   {
+	     super();
+	     
+	     _type     = FunctionTypeEnum.LOG;
+	     _selfPlot = true;
+	   
+	     _base = E;  
+	     _a    = 1;
+	     _b    = 2.7182828;  // not really used for evaluation unless it is not equal to e.
+	     _c    = 0;
+	     
+	     _baseInv    = 1;
+	     _pxPerUnitX = 0;
+	     _pxPerUnitY = 0;
+	     
+	     _myParent = null;
+	     
+	     _left = 0.00000000001;
+	   }
+    
+/**
+ * <code>toString</code> Return a generic representation of the <code>Log</code> function.
+ * 
+ * @return String a.log b cx + d, where "." is the platform multiply symbol and b is subscripted.  The subscriptEmbedded font is required for proper subscripting.
+ * 
+ * @since 1.0
+ */
+    override public function toString():String { return "a"+MULTIPLY + log("b", "cx") + " + d"; }
+    
+    private function log(pA:String, pB:String):String
+    {
+      if( pA != "e" )
+      {
+        return "log<font size='+" + SUBSCRIPT_INCREASE + "' face='SubscriptEmbedded'>"+pA+"</font>" + pB;
+      }
+      else
+      {
+        return "a" + MULTIPLY + "log " + pB;
+      }
+    }
+    
+/**
+ * <code>[set] params</code> Assign the basic parameters required to plot the <code>Log</code> function.
+ * 
+ * @param pParams:String Parameter string.  This function takes parameters <code>a</code>, <code>b</code>, <code>c</code> and <code>d</code>, with <code>a = 1</code>, <code>b = e</code>, 
+ * <code>c = 1</code>, and <code>d = 0</code> as defaults.
+ * 
+ * @return Nothing.
+ * 
+ * @since 1.0
+ */
+    override public function set params(pParams:String):void
+    {
+      if( pParams == "" )
+      {
+        return;
+      }
+      
+      var param:Array = pParams.split(",");
+      for( var i:uint=0; i<param.length; ++i )
+      {
+        var myParams:Array = param[i].split(":");
+        var name:String    = myParams[0].toLowerCase();
+        var num:Number     = Number(myParams[1]);
+        
+        switch( name)
+        {
+          case "a":
+            _a = isNaN(num) ? _a : num;
+          break;
+          
+          case "b":
+            if( isNaN(num) )
+            {
+              if( myParams[1].toLowerCase() == E )
+              {
+                _base    = E;
+                _b       = 2.7182828; 
+                _baseInv = 1;
+              }
+            }
+            else
+            {
+              _b       = num > 0 ? num : _b;
+              _base    = _b.toString();
+              _baseInv = 1/Math.log(_b);   
+            }
+          break;
+          
+          case "c":
+            _c = isNaN(num) ? _c : num;
+          break;
+          
+          case "d":
+            _d = isNaN(num) ? _d : num;
+          break;
+        }
+        
+        redraw();
+      }
+    }
+    
+/**
+ * 
+ * @inheritDoc
+ */
+    override public function plot(pCanvas:Sprite, pPxPerUnitX:Number, pPxPerUnitY:Number):void
+    {
+      if( pCanvas == null )
+      {
+        return;
+      }
+      
+      if( _myParent == null )
+      {
+        _myParent = pCanvas;
+      }
+     
+	     _pxPerUnitX = pPxPerUnitX;
+	     _pxPerUnitY = pPxPerUnitY;
+	     
+	     redraw();
+    }
+    
+    protected function redraw():void
+    {
+      if( _myParent == null )
+      {
+        return;
+      }
+      
+      var g:Graphics = _myParent.graphics;
+      g.clear();
+      
+      if( _graphRight <= 0 || _c <= 0 )
+      {
+        return;
+      }
+      
+	     if( _metrics == null )
+	     {
+	       g.lineStyle(1,0x000000);
+	     }
+	     else
+	     {
+	       g.lineStyle(_metrics.thickness, _metrics.color, _metrics.alpha);
+	     }
+	       
+      // next step, make delta variable
+      var delta:Number = 0.1;
+      var myX:Number   = Math.max(_graphLeft, 0.001 );
+      var myY:Number   = eval(myX);
+      g.moveTo(myX*_pxPerUnitX, -myY*_pxPerUnitY);
+            
+      myX  += delta;
+
+      while( myX < _graphRight )
+      {
+        myY = eval(myX);
+        g.lineTo(myX*_pxPerUnitX, -myY*_pxPerUnitY);
+      
+        myX += delta;
+      }
+      
+      // finish up last point
+       myY = Math.min( _graphBottom, eval(_graphRight) ); 
+       g.moveTo(_graphRight*_pxPerUnitX, -myY*_pxPerUnitY);
+    }
+    
+/**
+ * <code>eval</code> Evaluate the <code>Log</code> function.
+ *
+ * @parm pX:Number x-coordinate for evaluation, x > 0.
+ * 
+ * @return Number <Log> function value provided x > 0.
+ */ 
+    override public function eval(pX:Number):Number
+    {
+      if( _base == E )
+      {
+        return _a*Math.log(_c*pX) + _d; // log function should take care of all invalid inputs
+      }
+      else
+      {
+        return _a*Math.log(_c*pX)*_baseInv + _d;
+      }
+    }
+    
+/**
+ * <code>eval</code> Evaluate the <code>Log</code> function first derivative.
+ *
+ * @parm pX:Number x-coordinate for evaluation, x > 0.
+ * 
+ * @return Number <Log> function first derivative value, provided x > 0.
+ */
+    override public function derivative(pX:Number):Number
+    {
+      if( pX <= 0 || _c <= 0 )
+      {
+        return NaN;
+      }
+      
+      return (_a*_c*_baseInv)/pX;
+    }
+    
+/**
+ * <code>formatFunction</code> Format the symbolic form of the <code>Log</code> function given an array of parameters.
+ *
+ * @param pParams:Array String values of the a, b, c, and d parameters.
+ * 
+ * @return String Formatted version of the function in simplified form.
+ * 
+ */
+    override public function formatFunction(pParams:Array, pX:Number=NaN):String
+    {
+      if( pParams.length == 0 )
+      {
+        return "0";
+      }
+      
+      var a:String = pParams[0];
+      var b:String = pParams.length == 1 ? "0" : pParams[1];
+      var c:String = pParams.length == 2 ? "0" : pParams[2];
+      var d:String = pParams.length == 3 ? "0" : pParams[3];
+        
+      // recall that 'b' is the base
+      if( b == "" || b == " " || b == "0" )
+      {
+        return "0"
+      }
+      else if( b.charAt(0) == "-" )
+      {
+        return "undefined";
+      }
+      
+      if( c == "" || c == " " || c == "0" || c.charAt(0) == "-" )
+      {
+        return "undefined";
+      }
+      
+      if( c == "1" )
+      {
+        return twoParam(a, log(b, "x"), d);
+      }
+      else
+      {
+        return twoParam(a, log(b, c+"x"), d);
+      }
+    }
+    
+    private function twoParam(pA:String, pB:String, pC:String):String
+    {
+      if( pA == "" || pA == " " || pA == "0" )
+      {
+        return oneParam("", pC);
+      }
+      else if( pA == "1" )
+      {
+        return oneParam(pB, pC);
+      }
+      else if( pA == "-1" )
+      {
+        return oneParam(MINUS+pB, pC);
+      }
+      else if( pA.charAt(0) == "-" )
+      {
+        return oneParam(MINUS+pA.substring(1,pA.length)+MULTIPLY+pB, pC);
+      }
+      else
+      {
+        return oneParam(pA+MULTIPLY+pB, pC);
+      }
+    }
+    
+    private function oneParam(pA:String, pC:String):String
+    {
+      if( pC == "" || pC == " " || pC == "0" )
+      {
+        return pA == "" ? "0" : pA;
+      }
+      else if( pC.charAt(0) == "-" )
+      {
+        return pA == "" ? MINUS + pC.substring(1,pC.length) : pA + " " + MINUS + " " + pC.substring(1,pC.length);
+      }
+      else
+      {
+        return pA == "" ? pC : pA + " " + PLUS + " " + pC;
+      }
+    }
+    
+/**
+ * <code>formatDerivative</code> Format the symbolic form of the <code>Log</code> function first derivative given an array of parameters.
+ *
+ * @param pParams:Array String values of the a, b, c, and d parameters.
+ * 
+ * @return String Formatted version of the first derivative of the <code>Log</code> function in simplified form.
+ * 
+ */
+    override public function formatDerivative(pParams:Array, pX:Number=NaN):String
+    {
+      if( pParams.length == 0 )
+      {
+        return "0";
+      }
+      
+      var a:String = pParams[0];
+      var b:String = pParams.length == 1 ? "0" : pParams[1].toLowerCase();
+      var c:String = pParams.length == 2 ? "0" : pParams[2];
+      var d:String = pParams.length == 3 ? "0" : pParams[3];
+        
+      // the derivative is only defined in areas where the function is defined
+      if( b == "" || b == " " || b == "0" )
+      {
+        return "0"
+      }
+      else if( b.charAt(0) == "-" )
+      {
+        return "undefined";
+      }
+      
+      if( c == "" || c == " " || c == "0" || c.charAt(0) == "-" )
+      {
+        return "undefined";
+      }
+      
+      if( a == "" || a == " " || a == "0" )
+      {
+        return "0"
+      }
+     
+      // derivative is base = e, ac/x, base != e, (a*c)/(x*log b);
+      var l:String = b == "e" ? "x" : "x" + MULTIPLY + "log " + b;
+      { 
+        if( c == "1" )
+        {
+          return twoParamDeriv(a, l);
+        }
+        else if( c == "-1" )
+        {
+          if( a.charAt(0) == "-" )
+          {
+            return twoParamDeriv(a.substring(1,a.length), l);
+          }
+          else
+          {
+            return twoParamDeriv("-"+a, l);
+          }
+        }
+        else
+        {
+          return twoParamDeriv(a+c, l);
+        }
+      }
+    }
+    
+    private function twoParamDeriv(pA:String, pL:String):String
+    {
+      if( pA.charAt(0) == "1" )
+      {
+        return pA.length == 1 ? "1/"+pL : pA.substring(1,pA.length)+"/"+pL;
+      }
+      else if( pA.substr(0,2) == "-1" )
+      {
+        return pA.length == 2 ? MINUS+"1/"+pL : MINUS + pA.substring(2,pA.length)+"/"+pL;
+      }
+      else if( pA.charAt(0) == "-" )
+      {
+        return MINUS + pA.substring(1,pA.length)+"/"+pL;
+      }
+      else
+      {
+        return pA+"/"+pL;
+      }
+    }
+	 }
+}

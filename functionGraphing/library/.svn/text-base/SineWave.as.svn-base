@@ -1,0 +1,405 @@
+/**
+ * <p><code>SineWave</code> is a helper class for plotting sine waves of the form</p>
+ * 
+ * <p>a*sin(bx) + c</p>
+ *
+ * <p>This function takes parameters <code>a</code>, <code>b</code>, and <code>c</code>, with <code>a = 1</code>, <code>b = 1</code>, and <code>c = 0</code> as
+ * defaults.</p>
+ *
+ * @author Jim Armstrong
+ * @version 1.0
+ *
+ * @keyword function sine cosine
+ * 
+ */
+
+package com.explorelearning.hilo.display.graphing.functions.library
+{
+	 import com.explorelearning.hilo.display.graphing.functions.FunctionTypeEnum;
+	 import com.explorelearning.hilo.display.graphing.functions.QuadrantEnum;
+	 
+  import flash.utils.getDefinitionByName;
+  import flash.utils.getQualifiedClassName;
+	 
+/**
+ * <code>SineWave</code> Access the current domain value of this <code>SecantMarker<?code>.
+ * 
+ * @return Number Current delta from marker x-coordinate or the h value.
+ * 
+ * @since 1.0
+ */
+	 public class SineWave extends BaseFunction
+	 { 
+	   // parameters
+	   protected var _a:Number;
+	   protected var _b:Number;
+	   protected var _c:Number;
+	   
+	   public function SineWave():void
+	   {
+	     super();
+	     
+	     _type = FunctionTypeEnum.TRANSCENDENTAL;
+	     
+	     _a = 1;
+	     _b = 1;
+	     _c = 0;
+	   }
+    
+/**
+ * <code>toString()</code> Return a string representation of the generic form of this <code>SineWave</code> function.
+ * 
+ * @return String a.sin(bx) + c, where '.' is the platform multiply symbol.
+ * 
+ * @since 1.0
+ */
+    override public function toString():String { return "a" + MULTIPLY + "sin(bx) + c"; }
+     
+/**
+ * <code>[set] params</code> Assign the parameters required to plot the <code>SineWave</code> function.
+ * 
+ * @param pParams:String Parameter string.  This function takes parameters <code>a</code>, <code>b</code>, and <code>c</code>, with <code>a = 1</code>, 
+ * <code>b = 1</code>, and <code>c = 0</code> as defaults.
+ * 
+ * @return Nothing.
+ * 
+ * @since 1.0
+ */
+    override public function set params(pParams:String):void
+    {
+      if( pParams == "" )
+      {
+        return;
+      }
+      
+      var param:Array = pParams.split(",");
+      for( var i:uint=0; i<param.length; ++i )
+      {
+        var myParams:Array = param[i].split(":");
+        var name:String    = myParams[0].toLowerCase();
+        var num:Number     = myParams[1];
+        
+        switch( name)
+        {
+          case "a":
+            _a = isNaN(num) ? _a : num;
+          break;
+          
+          case "b":
+            _b = isNaN(num) ? _b : num;
+          break;
+          
+          case "c":
+            _c = isNaN(num) ? _c : num;
+          break;
+        }
+      }
+    }
+    
+/**
+ * <code>eval</code> Evaluate the <code>SineWave</code> function.
+ * 
+ * @param pX:Number x-coordinate.
+ * 
+ * @return Number.  Value of the <code>SineWave</code> function at the specified x-coordinate.
+ * 
+ * @since 1.0
+ */
+    override public function eval(pX:Number):Number
+    {   
+      return _a*Math.sin(_b*pX) + _c;
+    }
+    
+/**
+ * <code>derivative</code> Evaluate the <code>SineWave</code> function first derivative.
+ * 
+ * @param pX:Number x-coordinate.
+ * 
+ * @return Number.  Value of the first derivative of the <code>SineWave</code> function at the specified x-coordinate.
+ * 
+ * @since 1.0
+ */
+    override public function derivative(pX:Number):Number
+    {
+      return _a*_b*Math.cos(_b*pX);
+    }
+    
+/**
+ * <code>getCartesianMinima</code> Access an array of x-coordinates of all minima of a the <code>SineWave</code> function in an interval.
+ * 
+ * @param pA:Number Left endpoint of interval [a,b].
+ * @param pB:Number Right endponig of interval [a,b].
+ * 
+ * @return Array.  x-coordinate of each local minimum in [a,b].
+ * 
+ * @since 1.0
+ */
+    override public function getCartesianMinima(pA:Number, pB:Number):Array
+    {
+      if( _a == 0 )
+      {
+        return [];
+      }
+      
+      // use approach for cos function, then shift by pi/2
+      var value:Number = Math.PI/_b;
+      var mult:Number  = Math.round(pA/value);
+      
+      if( _a > 0 )
+      {
+        if( mult % 2 == 0 )
+        {
+           mult += 1.0;
+        }
+      }
+      else
+      {
+        if( mult % 2 != 0 )
+        {
+           mult += 1.0;
+        }
+      }
+      
+      var twoV:Number = 2*value;
+      var next:Number = mult*value + 0.5*Math.PI;
+      if( next >= pB )
+      {
+        return [];
+      }
+      
+      var coords:Array = next <= pA ? [] : [next];
+      var i:uint       = coords.length == 0 ? 0 : 1;
+      next            += twoV;
+      
+      while( next < pB )
+      {
+        coords[i++] = next;
+        next       += twoV;
+      }
+      
+      return coords;
+    }
+    
+/**
+ * <code>getCartesianMaxima</code> Access an array of x-coordinates of all maxima of a the <code>SineWave</code> function in an interval.
+ * 
+ * @param pA:Number Left endpoint of interval [a,b].
+ * @param pB:Number Right endponig of interval [a,b].
+ * 
+ * @return Array.  x-coordinate of each local maxima in [a,b].
+ * 
+ * @since 1.0
+ */
+    override public function getCartesianMaxima(pA:Number, pB:Number):Array
+    {
+      if( _a == 0 )
+      {
+        return [];
+      }
+      
+      // use approach for cos function, then shift by pi/2
+      var value:Number = Math.PI/_b;
+      var mult:Number  = Math.round(pA/value);
+      
+      if( _a > 0 )
+      {
+        if( mult % 2 != 0 )
+        {
+          mult += 1.0;
+        }
+      }
+      else
+      {
+        if( mult % 2 == 0 )
+        {
+          mult += 1.0;
+        }
+      }
+      
+      var twoV:Number = 2*value;
+      var next:Number = mult*value + 0.5*Math.PI;
+      if( next >= pB )
+      {
+        return [];
+      }
+      
+      var coords:Array = next <= pA ? [] : [next];
+      var i:uint       = coords.length == 0 ? 0 : 1;
+      next            += twoV;
+      
+      while( next < pB )
+      {
+        coords[i++] = next;
+        next       += twoV;
+      }
+      
+      return coords;
+    }
+    
+/**
+ * <code>computeBounds</code> Compute the internal bound values for this <code>SineWave</code> function.
+ * 
+ * @return Nothing.  Internal bound variables are set, which are used internally by the function grapher.
+ * 
+ * @since 1.0
+ */
+    override protected function computeBounds():void
+    {
+      _top    = _c + _a;
+	     _bottom = _c - _a;
+    }
+    
+/**
+ * <code>formatFunction</code> Format the functional representation of this <code>SineWave</code> given a collection of parameter values.
+ * 
+ * @param pParams:Array 'a', 'b', and 'c' parameters as <code>Strings</code>.
+ * @param pX:Number Reserved for future use
+ * @default NaN
+ * 
+ * @return String.  Representation of the <code>SineWave</code> function given the input parameters, in simplified form.
+ * 
+ * @since 1.0
+ */
+    override public function formatFunction(pParams:Array, pX:Number=NaN):String
+    {
+      if( pParams.length == 0 )
+      {
+        return "0";
+      }
+      
+      var a:String = pParams[0];
+      var b:String = pParams.length == 1 ? "0" : pParams[1];
+      var c:String = pParams.length == 2 ? "0" : pParams[2];
+      
+      if( b == "" || b == " " || b == "0" )
+      {
+        return twoParam(a, "", c);
+      }
+      else if( b == "1" )
+      {
+        return twoParam(a, "sin(x)", c);
+      }
+      else if( b == "-1" )
+      {
+        return twoParam(a, "sin(-x)", c);
+      }
+      else if( b.charAt(0) == "-" )
+      {
+        return twoParam(a, "sin("+MINUS+b.substring(1,b.length)+")", c);
+      }
+      else
+      {
+        return twoParam(a, "sin("+b+"x)", c);
+      }
+     
+    }
+    
+    private function twoParam(pA:String, pB:String, pC:String):String
+    {
+      if( pA == "" || pA == " " || pA == "0" )
+      {
+        return oneParam("", pC);
+      }
+      else if( pA == "1" )
+      {
+        return oneParam(pB, pC);
+      }
+      else if( pA == "-1" )
+      {
+        return oneParam(MINUS+pA, pC);
+      }
+      else if( pA.charAt(0) == "-" )
+      {
+        return oneParam(MINUS+pA.substring(1,pA.length)+MULTIPLY+pB, pC);
+      }
+      else
+      {
+        return oneParam(pA+MULTIPLY+pB, pC);
+      }
+    }
+    
+    private function oneParam(pA:String, pC:String):String
+    {
+      if( pC == "" || pC == " " || pC == "0" )
+      {
+        return pA == "" ? "0" : pA;
+      }
+      else if( pC.charAt(0) == "-" )
+      {
+        return pA == "" ? MINUS + pC.substring(1,pC.length) : pA + " " + MINUS + " " + pC.substring(1,pC.length);
+      }
+      else
+      {
+        return pA == "" ? pC : pA + " " + PLUS + " " + pC;
+      }
+    }
+    
+/**
+ * <code>formatDerivative</code> Format the functional representation of this <code>SineWave</code> function first derivative given a collection of parameter values.
+ * 
+ * @param pParams:Array 'a', 'b', and 'c' parameters as <code>Strings</code>.
+ * @param pX:Number Reserved for future use
+ * @default NaN
+ * 
+ * @return String.  Representation of the first derivativive of the <code>SineWave</code> function given the input parameters, in simplified form.
+ * 
+ * @since 1.0
+ */
+    override public function formatDerivative(pParams:Array, pX:Number=NaN):String
+    {
+      if( pParams.length == 0 )
+      {
+        return "0";
+      }
+      
+      var a:String = pParams[0];
+      var b:String = pParams.length == 1 ? "0" : pParams[1];
+      var c:String = pParams.length == 2 ? "0" : pParams[2];
+      
+      if( b == "" || b == " " || b == "0" )
+      {
+        return twoParamDeriv(a, "", c);
+      }
+      else if( b == "1" )
+      {
+        return twoParamDeriv(a, "cos(x)", c);
+      }
+      else if( b == "-1" )
+      {
+        return twoParamDeriv(a, "cos(-x)", c);
+      }
+      else if( b.charAt(0) == "-" )
+      {
+        return twoParamDeriv(a, "cos("+MINUS+b.substring(1,b.length)+")", c);
+      }
+      else
+      {
+        return twoParamDeriv(a, "cos("+b+"x)", c);
+      }
+    }
+    
+    private function twoParamDeriv(pA:String, pB:String, pC:String):String
+    {
+      if( pA == "" || pA == " " || pA == "0" )
+      {
+        return oneParam("", pC);
+      }
+      else if( pA == "1" )
+      {
+        return oneParam(pB, pC);
+      }
+      else if( pA == "-1" )
+      {
+        return oneParam(MINUS+pB, pC);
+      }
+      else if( pA.charAt(0) == "-" )
+      {
+        return oneParam(MINUS+pA.substring(1,pA.length)+MULTIPLY+pB, pC);
+      }
+      else
+      {
+        return oneParam(pA+MULTIPLY+pB, pC);
+      }
+    }
+	 }
+}

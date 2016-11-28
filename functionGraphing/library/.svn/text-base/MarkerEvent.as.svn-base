@@ -1,0 +1,59 @@
+/**
+ * <p><code>MarkerEvent</code> is an event class used to transfer a reference to a <code>Marker</code> up the display heirarchy.</p>
+ *
+ * @author Jim Armstrong
+ * @version 1.0
+ *
+ * @see com.explorelearning.hilo.display.graphing.functions.BaseFunction BaseFuncction
+ * @keyword function Marker
+ * 
+ */
+
+package com.explorelearning.hilo.display.graphing.functions.library
+{
+	 import flash.events.Event;
+
+	 public class MarkerEvent extends Event
+	 {
+	   // reference to dispatching Marker
+	   protected var _marker:Marker;
+	   
+	   // reference to non-Marker that may contain a marker symbol and dispatch a MarkerEvent
+	   protected var _dispatcher:Object;
+	   
+/**
+ * @inheritDoc
+ */
+	   public function MarkerEvent(pType:String, pBubbles:Boolean=false, pCancelable:Boolean=false):void
+	   {
+	     super(pType, pBubbles, pCancelable);
+	     
+	     _marker     = null;
+	     _dispatcher = null;
+	   }
+	  
+/**
+ * <code>[get] marker</code> Access a reference to the <code>Marker</code> that dispatched the event.
+ *
+ * @return Marker Reference to the <code>Marker</code> that dispatched this <code>MarkerEvent</code>.
+ * 
+ */
+    public function get marker():Marker { return _marker; }
+    
+    // this method is deprecated and may be removed in the future
+    public function get dispatcher():Object { return _dispatcher; }
+    
+/**
+ * <code>[set] marker</code> Assing a reference to the <code>Marker</code> that dispatched the event.
+ *
+ * @param pMarker:Marker Reference to the dispatching <code>Marker</code> 
+ * 
+ * @return Nothing.
+ * 
+ */
+    public function set marker(pMarker:Marker):void  { _marker = pMarker != null ? pMarker : _marker; }
+    
+    // this method is deprecated and may be removed in the future
+    public function set dispatcher(pObj:Object):void { _dispatcher = pObj != null ? pObj : _dispatcher; }
+	 }
+}

@@ -1,0 +1,124 @@
+/**
+* <p><code>Derivative</code> is a helper class for plotting the Hodograph or trace of the velocity curve another cartesian function.  The functional representation
+* of the input curve's first derivative is plotted.  The <code>derived</code> reference must be set in order to specify the function whose derivative is plotted.</p>
+* <p>Use the <code>TangentLine</code> class to plot the tangent line to a function at a point, representing the numerical value of the first derivative at a point.</p>
+*
+* @author Jim Armstrong
+* @version 1.0
+*
+* @see com.explorelearning.hio.display.graphing.functions.TangentLine TangentLine
+* @keyword function derivative
+* 
+*/
+
+package com.explorelearning.hilo.display.graphing.functions.library
+{
+	 import com.explorelearning.hilo.display.graphing.functions.FunctionTypeEnum;
+	 import com.explorelearning.hilo.display.graphing.functions.QuadrantEnum;
+	 import com.explorelearning.hilo.display.metrics.LineMetrics;
+	 import com.explorelearning.hilo.display.core.LineUtils;
+	  
+	 import flash.display.Graphics;
+	 import flash.display.Sprite;
+  import flash.utils.getDefinitionByName;
+  import flash.utils.getQualifiedClassName;
+  import flash.events.Event;
+	 
+/**
+ * <code>Derivative</code> Create a new <code>Derivative</code> instance.
+ * 
+ * @return Nothing.
+ * 
+ * @since 1.0
+ */
+	 public class Derivative extends BaseFunction
+	 {
+	   protected var _curX:Number;        // current x-coordinate at which the derivative is evaluated
+	    
+	   public function Derivative():void
+	   {
+	     super();
+	     
+	     _curX   = 0;
+	   }
+    
+/**
+ * 
+ * @inheritDoc
+ */
+    override public function plot(pCanvas:Sprite, pPxPerUnitX:Number, pPxPerUnitY:Number):void
+    {
+      // line style and canvas set in advance 
+      if( _derived != null && pCanvas != null && _derived.functionCategory == FunctionTypeEnum.CARTESIAN )
+      {
+        var fY:Number = _derived.eval(_curX);
+        var m:Number  = _derived.derivative(_curX);
+        
+        var g:Graphics = pCanvas.graphics;
+        g.clear();
+        g.lineStyle(_metrics.thickness, _metrics.color, _metrics.alpha);
+          
+        // delta-x for sampling the function
+        var deltaX:Number = 0.1; // (maxX-minX)/d;
+    
+        // current x-y values - y must be clipped (if clipped after first segment, do a moveTo)
+        _curX               = _graphLeft;
+        var curY:Number     = getDeriv(_curX);
+        var isValid:Boolean = !isNaN(curY);
+      
+        // note - dash line type requires QUAD plot [tbd]
+        if( isValid )
+        {
+          g.moveTo(_curX*pPxPerUnitX, -curY*pPxPerUnitY);
+        }
+        
+        while( _curX < _graphRight )
+        {
+          _curX += deltaX;
+          curY   = getDeriv(_curX);
+          if( !isNaN(curY) )
+          {
+            // isValid refers to the previous point
+            if( isValid )
+            {
+              g.lineTo(_curX*pPxPerUnitX, -curY*pPxPerUnitY);
+              isValid = true;
+            }
+            else
+            {
+              g.moveTo(_curX*pPxPerUnitX, -curY*pPxPerUnitY);
+            }
+          }
+          else
+          {
+            isValid = false;
+          }
+        }
+      
+        // finish off last point
+        if( _curX < _graphRight )
+        {
+          _curX = _graphRight;
+          curY  = getDeriv(_curX);
+          if( isValid )
+          {
+            g.lineTo(_curX*pPxPerUnitX, -curY*pPxPerUnitY);
+          }
+        }
+      }
+    }
+    
+    protected function getDeriv(pX:Number):Number
+    {
+      var curY:Number = _derived.derivative(pX);
+      if( isNaN(curY) )
+      {   
+        return curY;
+      }
+      else
+      {
+        return Math.min(_graphTop, Math.max(curY, _graphBottom));
+      }
+    }
+	 }
+}

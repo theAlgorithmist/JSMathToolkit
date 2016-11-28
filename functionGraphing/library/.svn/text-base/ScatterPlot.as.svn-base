@@ -1,0 +1,382 @@
+/**
+ * <p><code>ScatterPlot</code> is a helper class for plotting piecewise linear functions with a large number of line segments by only plotting a dot at the location
+ * of each datapoint.  This function accepts paramters <code>color</code> for the fill color and </code>radius</code> for the radius of the dot.  An optional <code>data</code>
+ * parameter assigns the initial point sequence in the compact syntax, <code>x,y x,y x,y</code>, where <code>x,y</code> are coordinates.  Use this same syntax to
+ * add points to the scatter plot via calls to <code>addData</code>.</p>
+ * 
+ * <p>It is expected that this function will be used for time-based simulation data in which the horizontal axis is time samples, all greater than or equal to zero.</p>
+ * 
+ * <p>The <code>reset</code> method clears all coordinates from this function.
+ *
+ * @author Jim Armstrong
+ * @version 1.0
+ *
+ * @keyword function line
+ * 
+ */
+
+package com.explorelearning.hilo.display.graphing.functions.library
+{
+  import com.explorelearning.hilo.display.graphing.functions.FunctionTypeEnum;
+  import com.explorelearning.hilo.display.graphing.functions.QuadrantEnum;
+  
+  import flash.display.Graphics;
+  import flash.display.Sprite;
+  import flash.utils.getDefinitionByName;
+  import flash.utils.getQualifiedClassName;
+	 
+  public class ScatterPlot extends Linear
+  { 
+    // function parameters
+    protected var _fill:uint     = 0xff0000;
+	protected var _radius:Number = 4;
+	
+	// internal data
+	protected var _x:Vector.<Number> = new Vector.<Number>();
+	protected var _y:Vector.<Number> = new Vector.<Number>();
+	
+	// clipping
+	protected var _xLeft:int  = -1;    // index into x-coordinate list where graph was last clipped at the left-most extent
+	protected var _xRight:int = -1;    // index into x-coordinate list where graph was last clipped at the right-most extent
+	   
+/**
+ * Construct a new <code>ScatterPlot</code> instance.
+ * 
+ * @return Nothing
+ * 
+ * @since 1.0
+ */
+    public function ScatterPlot():void
+    {
+      super();
+	     
+      _type = FunctionTypeEnum.SCATTER;
+	     
+      _selfPlot = true;  // function is self-plotting since it is non-continuous and defined piecewise
+    }
+
+/**
+ * <code>toString</code> Return a generic representation of the <code>ScatterPlot</code> function.
+ * 
+ * @return String "(x,y)".
+ * 
+ * @since 1.0
+ */
+    override public function toString():String { return "(x,y)"; }
+      
+/**
+ * <code>[set] params</code> Assign basic parameters for a <code>ScatterPlot</code> function.
+ * 
+ * @param pParams:String <code>color</code> and <code>radius</code> paramters and optional <code>data</code> parameter
+ * 
+ * @return Nothing
+ * 
+ * @since 1.0
+ */
+    override public function set params(pParams:String):void
+    {
+      if( pParams == "" )
+      {
+        return;
+      }
+      
+      var param:Array = pParams.split(",");
+      for( var i:uint=0; i<param.length; ++i )
+      {
+        var myParams:Array = param[i].split(":");
+        var name:String    = myParams[0].toLowerCase();
+		
+		switch( name )
+		{
+          case "color":
+		    var fill:Number = Number(myParams[1]);
+			_fill           = !isNaN(fill) && fill >= 0 ? fill : _fill;
+		  break;
+		
+		  case "radius":
+		    var r:Number = Number(myParams[1]);
+            _radius      = !isNaN(r) && r > 0 ? r : _radius;
+		  break;
+		
+		  case "data":
+		    // tbd
+		  break;
+        } 
+      }
+    }
+    
+/**
+ * @inheritDoc
+ */
+    override public function plot(pCanvas:Sprite, pPxPerUnitX:Number, pPxPerUnitY:Number):void
+    {
+      if( pCanvas == null )
+      {
+        return;
+      }
+     
+      var g:Graphics = pCanvas.graphics;
+      g.clear();
+	     
+      // no line style applied to dots
+	  
+	  g.beginFill(_fill);
+	  
+	  var i:int   = 0;
+	  var len:int = _x.length;
+	  
+	  // draw the dots across the horizontally clipped extents of the data; sometimes this will draw a single dot outside the visible range
+	  // of the graph, but its masked anyway, and it's just one point.  Any data the might lie outside the vertical extents of the graph is
+	  // ignored since it's masked.  
+	  clipLeft();
+	  clipRight();
+	   
+	  if( _xLeft != -1 && _xRight != -1 )
+	  {
+	    for( i=_xLeft; i<=_xRight; ++i )
+	    {
+          // scaller plot is just a circle centered at the designated data point
+	      g.drawCircle( _x[i]*pPxPerUnitX, -_y[i]*pPxPerUnitY, _radius );
+	    }
+	  }
+	  
+	  g.endFill();
+    }
+	
+/**
+ * @inheritDoc
+ */
+    override public function addData(pData:Object):void
+	{
+	  // input Object contains 'x' and 'y' properties corresponding to values to be updated, meaning appended onto the end of the current
+	  // data set.  Otherwise, reset and draw from scratch, or consider adding an 'append' property to the input object
+	  if( pData )
+	  {
+	    var newX:Vector.<Number> = pData.x;
+		var newY:Vector.<Number> = pData.y;
+		
+		var append:Boolean = false;
+		if( pData.hasOwnProperty("append") )
+		{
+		  append = pData.append as Boolean;
+		}
+		
+		if( !append )
+		{
+		  _x.length = 0;
+		  _y.length = 0;
+		}
+		
+        _x = _x.concat(newX);
+        _y = _y.concat(newY);
+	  }
+	}
+	
+/**
+ * Reset the data used in this plot
+ * 
+ * @return Nothing All internal data used to define this plot is cleared.  Parameter data remains intact.
+ */
+    override public function reset():void
+	{
+      _x.length = 0;
+      _y.length = 0;
+      _xLeft    = -1;
+      _xRight   = -1;  
+	}
+    
+/**
+ * <code>eval</code> Evaluate the <code>Linear</code> function.
+ * 
+ * @param pX:Number x-coordinate .
+ * 
+ * @return Number.  This function should never be called as <code>ScatterPlot</code> is self-plotting.  Currently, returns zero.
+ * 
+ * @since 1.0
+ */
+    override public function eval(pX:Number):Number
+    {   
+      return 0;
+    }
+    
+/**
+ * <code>derivative</code> Evaluate the <code>ScatterPlot</code> function's first derivative.
+ * 
+ * @param pX:Number x-coordinate .
+ * 
+ * @return Number NaN The derivative is everwhere undefined
+ * 
+ * @since 1.0
+ */
+    override public function derivative(pX:Number):Number
+    {
+      return NaN;
+    }
+    
+/**
+ * <code>formatFunction</code> Format the <code>LinePlot</code> functional representation given a collection of parameter values.
+ * 
+ * @param pParams:Array Function parameters.
+ * @param pX:Number Reserved for future use
+ * @default NaN
+ * 
+ * @return String.  Currently returns an empty string.  
+ * 
+ * @since 1.0
+ */
+    override public function formatFunction(pParams:Array, pX:Number=NaN):String
+    {
+      return "";
+    }
+    
+/**
+ * <code>formatDerivative</code> Format the <code>LinePlot</code> derivative, given a collection of parameter values.
+ * 
+ * @param pParams:Array Function parameters
+ * @param pX:Number Reserved for future use
+ * @default NaN
+ * 
+ * @return String.  Currently, this method returns a blank string
+ * 
+ * @since 1.0
+ */
+    override public function formatDerivative(pParams:Array, pX:Number=NaN):String
+    {
+      return "";
+      
+    }
+	
+	// determine the lowest index at which the x-coordinate is greater than or equal to the left graph extent or number of points-1 if the last
+	// data point lies to the left of the visible graph range
+	protected function clipLeft():void
+	{
+	  var i:int     = 0;
+	  var index:int = 0;
+	  var len:int   = _x.length;
+		
+      if( len == 0 )
+	  {
+	    _xLeft = -1;
+		return;
+	  }
+		
+      // check for outside visible graph range first
+	  if( _x[len-1] < _graphLeft )
+	  {
+	    _xLeft = len-1;
+		return;
+      }
+		
+	  if( _xLeft == -1 )
+	  {
+	    // kind of rolling the dice here - it's expected that only a small amount of data is present at the very first plot and that the
+	    // first data point will be inside the graph.  so, we can get away with a simple, linear search the first time
+		for( i=0; i<len; ++i )
+		{
+		  if( _x[i] >= _graphLeft )
+		  {
+		    index = i;
+			break;
+		  }
+		}
+	  }
+	  else
+	  {
+	    // is the new left-most graph extent smaller or larger than the current x-value?
+		var xl:Number = _x[_xLeft];
+        index         = _xLeft;
+		if( xl >= _graphLeft )
+		{
+		  for( i=_xLeft; i>=0; i-- )
+		  {
+		    if( _x[i] < _graphLeft )
+			{
+			  index = i+1;
+			  break;
+		    }
+		  }
+		}
+		else
+		{
+		  for( i=_xLeft; i<len; ++i )
+		  {
+		    if( _x[i] >= _graphLeft )
+			{
+			  index = i;
+			  break;
+		    }
+		  }
+		}
+	  }
+	  
+	  _xLeft = index;
+	}
+	
+	// determine the greatest index at which the x-coordinate is less than or equal to the right graph extent or 0 if the first data point
+	// lies to the right of the visible graph range
+	protected function clipRight():void
+	{
+	  var i:int     = 0;
+	  var index:int = 0;
+	  var len:int   = _x.length;
+		
+	  if( len == 0 )
+	  {
+	    _xRight = -1;
+		return;
+      }
+		
+      // check for outside visible graph range first
+	  if( _x[0] > _graphRight )
+	  {
+	    _xRight = 0;
+		return;
+      }
+	  	
+      if( _xRight == -1 )
+	  {
+	    // kind of rolling the dice here - it's expected that only a small amount of data is present at the very first plot and that the
+	    // last data point will be inside the graph.  so, we can get away with a simple, linear search the first time
+		for( i=len-1; i>=0; i-- )
+		{
+		  if( _x[i] <= _graphRight )
+		  {
+		    index = i;
+		    break;
+          }
+		}
+	  }
+	  else
+	  {
+	    // is the new right-most graph extent smaller or larger than the current x-value?
+		var xr:Number = _x[_xRight];
+        index         = _xRight;
+		if( xr <= _graphRight )
+		{
+		  for( i=len-1; i>_xRight; i-- )
+		  {
+		    if( _x[i] <= _graphRight )
+			{
+			  index = i;
+			  break;
+		    }
+		  }
+		 
+		}
+		else
+		{
+		  for( i=_xRight; i>=0; i-- )
+		  {
+		    if( _x[i] <= _graphRight )
+			{
+			  index = i;
+			  break;
+            }
+		  }
+		}
+	  }
+	  
+      _xRight = index;
+	}
+  }
+}

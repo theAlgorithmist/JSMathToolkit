@@ -1,0 +1,633 @@
+/**
+ * <p><code>Polynomial</code> is a helper class for plotting polynomial functions of the form</p>
+ * 
+ * <p>a0 + a1*x + a2*x^2 + a3*x^3 + ... + ak*x^k</p>
+ * 
+ * <p>This function accepts a single parameter; a comma-delimited string of the a0, a1, a2, ... ak coefficients.</p>
+ *
+ * @author Jim Armstrong
+ * @version 1.0
+ *
+ * @keyword function polynomial
+ * 
+ */
+
+package com.explorelearning.hilo.display.graphing.functions.library
+{
+	 import com.explorelearning.hilo.display.graphing.functions.FunctionTypeEnum;
+	 import com.explorelearning.hilo.display.graphing.functions.QuadrantEnum;
+	 import com.explorelearning.hilo.utils.StringUtils;
+	 
+  import flash.utils.getDefinitionByName;
+  import flash.utils.getQualifiedClassName;
+	 
+	 public class Polynomial extends BaseFunction
+	 { 
+	   // coefficients
+	   protected var _c:Array;
+	   
+	   private var _xIntercept1:Number;
+	   private var _xIntercept2:Number;
+	   
+/**
+ * <code>Polynomial</code> Construct a new <code>Polynomial</code> instance.
+ * 
+ * @return Nothing.
+ * 
+ * @since 1.0
+ * 
+ */
+	   public function Polynomial():void
+	   {
+	     super();
+	     
+	     _c    = new Array();
+	     _type = FunctionTypeEnum.POLYNOMIAL;
+	     
+	     _xIntercept1 = 0;
+	     _xIntercept2 = 0;
+	   }
+    
+/**
+ * <code>[get] degree</code> Access the degree of this polynomial.
+ * 
+ * @return uint polynomial degree, which is zero if no coefficients have been defined, meaning the polynomial defaults to the constant function, zero.
+ * 
+ * @since 1.0
+ * 
+ */
+    public function get degree():uint { return Math.max(0, _c.length-1); }
+    
+/**
+ * <code>toString</code> Return a string representation of the <code>Polynomial</code>.
+ * 
+ * @return String.  Polynomial with formatted superscripts and subscripts based on the actual degree.  The <code>superscriptEmbedded</code> and <code>subscriptEmbedded</code> 
+ * fonts must be embedded for proper display.
+ * 
+ * @since 1.0
+ * 
+ */
+    override public function toString():String
+    {
+      return "c" + sub("0") + "x + c" + sub("1") + "x + " + "c" + sub("2") + "x" + sup("2") + " + ...";
+    }
+    
+    private function sub(pArg:String):String
+    {
+      return "<font size='+" + SUBSCRIPT_INCREASE + "' face='SubscriptEmbedded'>"+pArg+"</font>"
+    }
+    
+    private function sup(pArg:String):String
+    {
+      return "<font size='+" + SUPERSCRIPT_INCREASE + "' face='SuperscriptEmbedded'>"+pArg+"</font>"
+    }
+    
+/**
+ * <code>[set] params</code> Assign the parameters required to plot the <code>Polynomial</code> function.
+ * 
+ * @param pParams:String Parameter string consisting of comma-delimited coefficients with constant term first and in order of increasing power of x.
+ * 
+ * @return Nothing.
+ * 
+ * @since 1.0
+ */
+    override public function set params(pParams:String):void
+    {
+      // comma-delimited params are the polynomial coefficients in increasing degree, i.e. c0 + c1*x * c2*x^2 ...
+      if( pParams == "" )
+      {
+        return;
+      }
+      
+      _c = pParams.split(",");
+      for( var i:uint=0; i<_c.length; ++i )
+      {
+        var n:Number = Number(_c[i]);
+        _c[i]        = isNaN(n) ? 0 : n;
+      }
+    }
+    
+/**
+ * <code>eval</code> Evaluate the <code>Polynomial</code> function.
+ * 
+ * @param pX:Number x-coordinate.
+ * 
+ * @return Number.  <code>Polynomial</code> value at the specified x-coordinate.  Function value is uniformly zero if no coefficients have been defined.
+ * 
+ * @since 1.0
+ */
+    override public function eval(pX:Number):Number
+    {   
+      var len:uint = _c.length;
+      if( len > 1 )
+      {
+        var y:Number = _c[len-1];
+        for( var i:int=len-2; i>=0; i-- )
+          y = pX*y + _c[i];
+
+        return y;
+      }
+      else
+        return _c[0];
+    }
+    
+/**
+ * <code>eval</code> Evaluate the first derivative of the <code>Polynomial</code> function.
+ * 
+ * @param pX:Number x-coordinate.
+ * 
+ * @return Number.  First derivative value at the specified x-coordinate.  Derivative value is uniformly zero if no coefficients have been defined.
+ * 
+ * @since 1.0
+ */
+    override public function derivative(pX:Number):Number
+    {
+      var len:uint = _c.length;
+      if( len > 1 )
+      {
+        var y:Number = Number(len-1)*_c[len-1];
+        for( var i:int=len-2; i>=1; i-- )
+          y = pX*y + Number(i)*_c[i];
+
+        return y;
+      }
+      else
+        return 0;
+    }
+    
+/**
+ * <code>getCartesianMinima</code> Access an array of x-coordinates of all minima of a the <code>Polynomial</code> function in an interval.
+ * 
+ * @param pA:Number Left endpoint of interval [a,b].
+ * @param pB:Number Right endponig of interval [a,b].
+ * 
+ * @return Array.  x-coordinate of each local minimum in [a,b].
+ * 
+ * @since 1.0
+ */
+    override public function getCartesianMinima(pA:Number, pB:Number):Array
+    {
+      // only return stationary points for quads or cubics
+      if( degree == 1 || degree > 3 )
+      {
+        return [];
+      }
+      
+      if( degree == 2 )
+      {
+        // min or max occurs at -b/2a
+        var a:Number = _c[2];
+        var b:Number = _c[1];
+        if( a != 0 )
+        {
+          return a > 0 ? [-b/(2*a)] : [];
+        }
+      }
+      else
+      {
+        // set first derivative equal to zero (two roots to resulting quadratic)
+        a            = _c[1];
+        b            = 2*_c[2];
+        var c:Number = 3*_c[3];
+        var d:Number = b*b - 4*a*c;
+        if( d > 0 )
+        {
+          d = Math.sqrt(d);
+          a = a + a;
+          var x1:Number = (-b + d)/a;
+          var x2:Number = (-b - d)/a;
+          
+          // second derivative is linear, so sign is easily obtained
+          c            = 6*_c[3];
+          var s:Number = c*x1 + b;
+          if( s > 0 )
+          {
+            return [x1];   // can only have one min.
+          }
+          
+          c = 6*_c[3];
+          s = c*x2 + b;
+          if( s > 0 )
+          {
+            return [x2];
+          }
+        }
+      }
+      
+      return []; // will never get here, but it keeps the compiler happy :)
+    }
+    
+/**
+ * <code>getCartesianMinima</code> Access an array of x-coordinates of all maxima of a the <code>Polynomial</code> function in an interval.
+ * 
+ * @param pA:Number Left endpoint of interval [a,b].
+ * @param pB:Number Right endponig of interval [a,b].
+ * 
+ * @return Array.  x-coordinate of each local maxima in [a,b].
+ * 
+ * @since 1.0
+ */
+    override public function getCartesianMaxima(pA:Number, pB:Number):Array
+    {
+      // only return stationary points for quads or cubics
+      if( degree == 1 || degree > 3 )
+      {
+        return [];
+      }
+      
+      if( degree == 2 )
+      {
+        // min or max occurs at -b/2a
+        var a:Number = _c[2];
+        var b:Number = _c[1];
+        if( a != 0 )
+        {
+          return a < 0 ? [-b/(2*a)] : [];
+        }
+      }
+      else
+      {
+        // set first derivative equal to zero (two roots to resulting quadratic)
+        a            = _c[1];
+        b            = 2*_c[2];
+        var c:Number = 3*_c[3];
+        var d:Number = b*b - 4*a*c;
+        if( d > 0 )
+        {
+          d = Math.sqrt(d);
+          a = a + a;
+          var x1:Number = (-b + d)/a;
+          var x2:Number = (-b - d)/a;
+          
+          // second derivative is linear, so sign is easily obtained
+          c            = 6*_c[3];
+          var s:Number = c*x1 + b;
+          if( s < 0 )
+          {
+            return [x1];   // can only have one max.
+          }
+          
+          c = 6*_c[3];
+          s = c*x2 + b;
+          if( s < 0 )
+          {
+            return [x2];
+          }
+        }
+      }
+      
+      return []; // will never get here, but it keeps the compiler happy :)
+    }
+    
+/**
+ * <code>computeBounds</code> Provide bound information for this <code>Polynomial</code> function.
+ * 
+ * @return Nothing.  Sets internal bound information for all third-degree or lower polynomials.
+ * 
+ * @since 1.0
+ */
+    override protected function computeBounds():void
+    {
+      // unless we want to get into numerically evaluating all zeros of the polynomial's derivative, stationary points are not feasible in general
+ 
+      if( _c.length == 2 )
+      {
+        _left   = -Number.MAX_VALUE;
+        _right  = Number.MAX_VALUE;
+          
+        if( Math.abs(_c[1]) < 0.000000001 )
+        {
+          _top = _bottom = _c[0]; 
+        }
+        else
+        {
+         
+          _top    = Number.MAX_VALUE;
+          _bottom = -Number.MAX_VALUE;
+        }
+      }
+      else if( degree == 2 )
+      {    
+        setQuadBounds();
+      }
+      else if( degree == 3 )
+      {
+        if( Math.abs(_c[3]) < 0.000000001 )
+        {
+          setQuadBounds();
+        }
+        else
+        {
+          noBounds();
+        }
+      }
+      else
+      {
+        noBounds();
+      }
+    }
+    
+    // x-intercept(s) for a low-degree polynomial
+    public function computeXIntercepts():void
+    {
+      if( _c.length == 2 )
+      {
+        if( Math.abs(_c[1]) > 0.000000001 )
+        {
+          _xIntercept1 = -_c[0]/_c[1];    
+        } 
+        else
+        {
+          _xIntercept1 = NaN;     
+        }
+      }
+      else if( _c.length == 3 )
+      {
+        var a:Number = _c[2];
+        var b:Number = _c[1];
+        var c:Number = _c[0];
+        
+        var d:Number = b*b - 4*a*c;
+        if( d > 0 )
+        {
+          a            = a + a;
+          d            = Math.sqrt(d);
+          _xIntercept1 = (-b-d)/a;
+          _xIntercept2 = (-b+d)/a;
+        }
+        else
+        {
+          _xIntercept1 = NaN;
+          _xIntercept2 = NaN;
+        }
+      }
+    }
+    
+    private function noBounds():void
+    {
+      _left   = -Number.MAX_VALUE;
+      _right  = Number.MAX_VALUE;
+      _top    = Number.MAX_VALUE;
+      _bottom = -Number.MAX_VALUE;      
+    }
+    
+    private function setQuadBounds():void
+    {
+      _left  = -Number.MAX_VALUE;
+      _right = Number.MAX_VALUE;
+      if( Math.abs(_c[2]) < 0.000000001 )
+      {
+        if( Math.abs(_c[1]) < 0.000000001 )
+        {
+          _top = _bottom = _c[0];
+        }
+        else
+        {
+          _top = _bottom = _c[1];
+        }
+      }
+      else if( _c[2] > 0 )
+      {
+        _bottom = -_c[1]/2.0*_c[0];
+        _top    = Number.MAX_VALUE;
+      }
+      else if( _c[2] < 0 )
+      {
+        _top    = -_c[1]/2.0*_c[0];
+        _bottom = -Number.MAX_VALUE;
+      }
+    }
+    
+/**
+ * <code>formatFunction</code> Format the functional representation of this <code>Polynomial</code> given a collection of parameter values.
+ * 
+ * @param pParams:Array Each element should be of type <code>String</code> and represents a single coefficient in order of increasing power of x.
+ * @param pX:Number Reserved for future use
+ * @default NaN
+ * 
+ * @return String.  Returns same <code>String</code> as <code>toString</code> function.  The <code>superscriptEmbedded</code> and <code>subscriptEmbedded</code>
+ * fonts should be embedded for proper display.
+ * 
+ * @since 1.0
+ */
+    override public function formatFunction(pParams:Array, pX:Number=NaN):String
+    {
+      if( pParams.length == 0 )
+      {
+        return "0";
+      }
+      
+      var c:String     = pParams[0];
+      var myStr:String = "";
+      
+      if( c == "" || c == " " || c == "0" )
+      {
+        myStr = "";
+      }
+      else if( c.charAt(0) == "-" )
+      {
+        myStr = MINUS + c.substring(1,c.length);
+      }
+      else
+      {
+        myStr = c;
+      }
+      
+      var d:int = degree;
+      var l:int = pParams.length;
+      for( var i:uint=1; i<=d; ++i )
+      {
+        c      = i < l ? pParams[i] : "0";
+        myStr += addTerm(c, i);
+      }
+      
+      // check 'special' conditions
+      if( myStr.charAt(0) == MINUS && myStr.charAt(1) == " " )
+      {
+        myStr = MINUS + myStr.substring(2,myStr.length);
+      }
+      
+      if( myStr == "" )
+      {
+        myStr = "0";
+      }
+      
+      return myStr;
+    }
+    
+    private function addTerm(pA:String, pI:int):String
+    {
+      if( pA == "" || pA == " " || pA == "0" )
+      {
+        return "";
+      }
+      
+      var myStr:String = "";
+      if( pA == "1" )
+      {
+        myStr += " + " + "x";
+        if( pI > 1 )
+        {
+          myStr += sup(pI.toString());
+        }
+      }
+      else if( pA == "-1" )
+      {
+        myStr = MINUS + " x";
+        if( pI > 1 )
+        {
+          myStr += sup(pI.toString());
+        }
+      }
+      else if( pA.charAt(0) == "-" )
+      {
+        myStr += " " + MINUS + " " + pA.substring(1,pA.length) + "x";
+        if( pI > 1 )
+        {
+          myStr += sup(pI.toString());
+        }
+      }
+      else
+      {
+        myStr += " + " + pA + "x";
+        if( pI > 1 )
+        {
+          myStr += sup(pI.toString());
+        }
+      }
+      
+      return myStr;
+    }
+    
+/**
+ * <code>formatDerivative</code> Format the functional representation of the first derivative of this <code>Polynomial</code>.
+ * 
+ * @param pParams:Array Each element should be of type <code>String</code> and represents a single coefficient in order of increasing power of x.
+ * @param pX:Number Reserved for future use
+ * @default NaN
+ * 
+ * @return String.  First derivative formatted with subcripts and superscritps (for powers).  The <code>superscriptEmbedded</code> and <code>subscriptEmbedded</code>
+ * fonts should be embedded for proper display.
+ * 
+ * @since 1.0
+ */
+    override public function formatDerivative(pParams:Array, pX:Number=NaN):String
+    {
+      if( pParams.length < 2 )
+      {
+        return "0";
+      }
+      
+      var c:String     = pParams[1];
+      var myStr:String = "";
+      
+      if( c == "" || c == " " || c == "0" )
+      {
+        myStr = "";
+      }
+      else if( c.charAt(0) == "-" )
+      {
+        myStr = MINUS + c.substring(1,c.length);
+      }
+      else
+      {
+        myStr = c;
+      }
+      
+      var d:int = degree;
+      var l:int = pParams.length;
+      for( var i:uint=2; i<=d; ++i )
+      {
+        c      = i < l ? pParams[i] : "0";
+        myStr += addDerivTerm(c, i);
+      }
+      
+      // check 'special' conditions
+      if( myStr.charAt(0) == MINUS && myStr.charAt(1) == " " )
+      {
+        myStr = MINUS + myStr.substring(2,myStr.length);
+      }
+      
+      if( myStr.substr(0,3) == " + " )
+      {
+        myStr = myStr.substring(3,myStr.length);
+      }
+      
+      if( myStr.substr(0,3) == " " + MINUS + " " )
+      {
+        myStr = myStr.substring(3,myStr.length);
+      }
+      
+      if( myStr == "" )
+      {
+        myStr = "0";
+      }
+      
+      return myStr;
+    }
+    
+    private function addDerivTerm(pA:String, pI:int):String
+    {
+      if( pA == "" || pA == " " || pA == "0" )
+      {
+        return "";
+      }
+      
+      var myStr:String    = "";
+      var mult:String     = pI.toString();
+      var exponent:String = (pI-1).toString();
+       
+      if( pA == "1" )
+      {
+        myStr += " + " + mult + "x";
+        if( pI > 2 )
+        {
+          myStr += sup(exponent);
+        }
+      }
+      else if( pA == "-1" )
+      {
+        myStr = MINUS + " " + mult + "x";
+        if( pI > 2 )
+        {
+          myStr += sup(exponent);
+        }
+      }
+      else if( pA.charAt(0) == "-" )
+      {
+        myStr += " " + MINUS + " " + term(mult, pA.substring(1,pA.length)) + "x";
+        if( pI > 2 )
+        {
+          myStr += sup(exponent);
+        }
+      }
+      else
+      {
+        myStr += " + " + term(mult, pA) + "x";
+        if( pI > 2 )
+        {
+          myStr += sup(exponent);
+        }
+      }
+      
+      return myStr;
+    }
+    
+    private function term(pA:String, pB:String):String
+    {
+      // number x number is converted
+      var numA:Number = Number(pA);
+      var numB:Number = Number(pB);
+      
+      if( !isNaN(numA) && !isNaN(numB) )
+      {
+        var product:Number = numA*numB;
+        return StringUtils.toDecimalPlaces(product, DIGITS);
+      }
+      else
+      {
+        return pA+pB;
+      }
+    }
+	 }
+}

@@ -1,0 +1,29 @@
+	/**
+	  * <p><code>Sine</code> Sine easing function, adopted from robertpenner.com.</p>
+	  * 
+	  * @author Jim Armstrong
+	  * @version 1.0
+  	*
+	  * 
+	  */
+
+package com.explorelearning.easing
+{
+  public class Sine 
+  {
+	   public static function easeIn (t:Number, b:Number, c:Number, d:Number):Number 
+	   {
+		    return -c * Math.cos(t/d * (Math.PI/2)) + c + b;
+	   }
+	   
+	   public static function easeOut (t:Number, b:Number, c:Number, d:Number):Number 
+	   {
+		    return c * Math.sin(t/d * (Math.PI/2)) + b;
+	   }
+	   
+	   public static function easeInOut (t:Number, b:Number, c:Number, d:Number):Number 
+	   {
+		    return -c/2 * (Math.cos(Math.PI*t/d) - 1) + b;
+	   }
+	 }
+}

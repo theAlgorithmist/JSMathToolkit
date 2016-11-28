@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <link rel="shortcut icon" href="img/favicon.ico">
+  <link href="css/bootstrap.min.css" rel="stylesheet" type="text/css">
+  <link href="css/demo.css" rel="stylesheet" type="text/css">
+  <title>The Algorithmist :: Closed Catmull Rom Spline</title>
+</head>
+
+<body>
+
+  <nav class="navbar-wrapper navbar-inverse navbar-fixed-top" role="navigation">
+    <div class="container">
+      <div class="navbar-header">
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-ex1-collapse">
+          <span class="sr-only">Toggle navigation</span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+        </button>
+        <p class="navbar-brand">Closed-loop Catmull Rom Spline</p>
+      </div>
+          
+      <div class="collapse navbar-collapse">
+        <ul class="nav navbar-nav">
+          <li><a href="http://www.algorithmist.net" target="_blank"><span class="glyphicon glyphicon-star"></span>The Algorithmist</a></li>
+        </ul>
+      </div><!-- /.navbar-collapse -->
+    </div>
+  </nav>
+ 
+  <div class="container-fluid">
+    <div class="jumbotron">
+    <p align="center"><span class="shadowed">The Algorithmist::Closed Catmull-Rom Spline Demo</span></p>
+    </div>
+  </div>
+  
+   <div class="container">
+     <div class="row">
+       <div class="col-md-12">
+         <p class="lightTxt">This demo is shows how to create a closed-loop Catmull-Rom spline.  The point sequence should form a generally closed shape for the algorihtm to provide the most visually pleasing result.  Quadratic Bezier approximation of the spline is rendered in blue.</p>
+       </div>
+     </div>
+      
+     <div class="row>">  
+       <div class="col-md-12 padded" id="canvasWrapper" align="center" >
+         <canvas width="500" height="300" id="stageCanvas" style="border:1px solid #ebebeb;"></canvas>
+       </div>
+     </div>
+     
+     <div class="row">
+       <div class="col-md-12" >
+         <p id="instruct" class="lightTxt" align="center"></p>
+       </div>
+     </div>
+   </div>
+   
+   <footer>
+     <p class="lightTxt">&copy; 2013 The Algorithmist.  All rights reserved.</p>
+   </footer>
+   
+  </div>
+   
+   <script type="text/javascript" src="js/require-setup.js"></script>
+   <script data-main="js/ClosedCatmullRomSplineDemo" src="js/require.js"></script>
+   
+</body>
+</html>

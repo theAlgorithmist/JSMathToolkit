@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <link rel="shortcut icon" href="img/favicon.ico">
+  <link href="css/bootstrap.min.css" rel="stylesheet" type="text/css">
+  <link href="css/demo.css" rel="stylesheet" type="text/css">
+  <title>The Algorithmist :: Basic Easing Methods</title>
+</head>
+
+<body>
+
+  <nav class="navbar-wrapper navbar-inverse navbar-fixed-top" role="navigation">
+    <div class="container">
+      <div class="navbar-header">
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-ex1-collapse">
+          <span class="sr-only">Toggle navigation</span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+        </button>
+        <p class="navbar-brand">Basic Easing Demo</p>
+      </div>
+          
+      <div class="collapse navbar-collapse">
+        <ul class="nav navbar-nav">
+        
+          <li><a href="http://www.algorithmist.net" target="_blank"><span class="glyphicon glyphicon-star"></span>The Algorithmist</a></li>
+        </ul>
+      </div><!-- /.navbar-collapse -->
+    </div>
+  </nav>
+ 
+  <div class="container-fluid">
+    <div class="jumbotron">
+    <p align="center"><span class="shadowed">The Algorithmist::Basic Easing Demo</span></p>
+    </div>
+  </div>
+  
+   <div class="container">
+     <div class="row">
+       <div class="col-md-12">
+         <p class="lightTxt">Easing maps t in [0,1] to t* in [0,1] in order to alter the motion along a path.  This demo illustrates the difference in the two parameter value for a variety of easing methods and default parameter selections for each of the methods.  Select easing method and ease in/out or in-out.  Then, click start to being a ten-second animation.  The eased parameter value is shown in green.</p>
+     </div>
+     
+     <div class="row">
+       <div class="col-md-12" >
+         <div class="btn-group">
+           <button type="button" class="btn btn-primary btn-sm dropdown-toggle" data-toggle="dropdown">Select <span class="caret"></span></button>
+           <ul class="dropdown-menu" role="menu" id="easeSelector">
+             <li><a href="#">Back</a></li>
+             <li><a href="#">Bounce</a></li>
+             <li><a href="#">Cubic</a></li>
+             <li><a href="#">Elastic</a></li>
+             <li><a href="#">Exponential</a></li>
+             <li><a href="#">Linear</a></li>
+             <li><a href="#">Quadratic</a></li>
+           </ul>
+         </div>
+         <button class="btn btn-sm btn-primary" type="button" id="reset">Reset</button>
+         <button class="btn btn-sm btn-primary" type="button" id="start">Start</button>
+       </div>
+     </div>
+      
+     <div class="row>">  
+       <div class="col-md-12 padded" id="canvasWrapper" align="center" >
+         <canvas width="300" height="300" id="stageCanvas" style="border:1px solid #ebebeb;"></canvas>
+       </div>
+     </div>
+     
+     <div class="row">
+       <div class="col-md-12" >
+         <p id="instruct" class="lightTxt" align="center">Note:  All functions are exercised in such a manner that a base parameter, t, is varied from 0 to 1 (red marker) over a time interval of 10 seconds.  Colored markers allow quick visual comparison of linear time variance vs. easing.</p>
+       </div>
+     </div>
+   </div>
+   
+   <footer>
+     <p class="lightTxt">&copy; 2013 The Algorithmist.  All rights reserved.</p>
+   </footer>
+   
+  <script type="text/javascript" src="js/raf.js"></script>
+  <script type="text/javascript" src="js/require-setup.js"></script>
+  <script data-main="js/EaseFunctionDemo" src="js/require.js"></script>
+   
+</body>
+</html>

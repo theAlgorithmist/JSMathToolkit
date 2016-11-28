@@ -1,0 +1,150 @@
+/**
+ * <p><code>IntervalData</code> is a helper class that holds interval data for a linear step function.  A step function is defined as a collection of
+ * line segments over a set of intervals [a,b] with slope, m, with an ordinate, y, at x=a.</p>
+ *
+ * @author Jim Armstrong
+ * @version 1.0
+ *
+ * @keyword function
+ * 
+ */
+ 
+package com.explorelearning.hilo.display.graphing.functions.library
+{
+  public class IntervalData
+  {
+    private var _left:String;   // left-endpoint (could be '-inf')
+    private var _right:String;  // right-endpoint (could be 'inf')
+    private var _a:Number;      // numerical value of left endpoint
+    private var _b:Number;      // numerical value of right endpoint
+    private var _m:Number;      // slope of line segment
+    private var _y:Number;      // y-value of left endpoint
+
+/**
+ * <code>IntervalData</code> Construct a new IntervalData instance.
+ *
+ * @return Nothing.
+ * @since 1.0
+ * 
+ */
+    public function IntervalData()
+    {
+      _left  = "";
+      _right = "";
+      _a     = 0;
+      _b     = 0;
+      _m     = 0;
+      _y     = 0;
+    }
+
+/**
+ * <code>[get] a</code> Return left-endpoint of interval.
+ *
+ * @return Number Left endpoint, a, in [a,b].  If the left endpoint is -infinity, <code>-Number.MAX_VALUE</code> is returned.
+ * 
+ * @since 1.0
+ * 
+ */
+    public function get a():Number { return _a; }
+    
+/**
+ * <code>[get] b</code> Return right-endpoint of interval.
+ *
+ * @return Number Right endpoint, a, in [a,b].  If the right endpoint is infinity, <code>Number.MAX_VALUE</code> is returned.
+ * 
+ * @since 1.0
+ * 
+ */    
+    public function get b():Number { return _b; }
+   
+/**
+ * <code>[get] m</code> Return slope of this interval.
+ *
+ * @return Number Slope of line segment in this interval.
+ * 
+ * @since 1.0
+ * 
+ */  
+    public function get m():Number { return _m; }
+    
+/**
+ * <code>[get] y</code> Return the function value at the left endpoint.
+ *
+ * @return Number f(a).  With this value and the slope, f(b) is easily computed.
+ * 
+ * @since 1.0
+ * 
+ */
+    public function get y():Number { return _y; }
+   
+/**
+ * <code>[set] left</code> Assign the left endpoint.
+ *
+ * @param pVal:String May be either the <code>String</code> "-inf" for minus infinity or the numerical value of the left endpoint.
+ * 
+ * @return Nothing.  Assigns a numerical value to the left endpoint of [a,b].
+ * 
+ * @since 1.0
+ * 
+ */
+    public function set left(pVal:String):void
+    {
+      if( pVal != "" )
+      {
+        _left        = pVal;
+        var n:Number = Number(pVal);
+        _a           = isNaN(n) ? -Number.MAX_VALUE : n;
+      }
+    }
+    
+/**
+ * <code>[set] right</code> Assign the right endpoint.
+ *
+ * @param pVal:String May be either the <code>String</code> "+inf" or "inf" for plus infinity or the numerical value of the right endpoint.
+ * 
+ * @return Nothing.  Assigns a numerical value to the right endpoint of [a,b].
+ * 
+ * @since 1.0
+ * 
+ */
+    public function set right(pVal:String):void
+    {
+      if( pVal != "" )
+      {
+        _right        = pVal;
+         var n:Number = Number(pVal);
+        _b            = isNaN(n) ? Number.MAX_VALUE : n;
+      }
+    }
+    
+/**
+ * <code>[set] m</code> Assign slope of the line segment in the current interval.
+ *
+ * @param pVal:Number Numerical value of slope.
+ * 
+ * @return Nothing.
+ * 
+ * @since 1.0
+ * 
+ */
+    public function set m(pVal:Number):void
+    {
+      _m = isNaN(pVal) ? _m : pVal;
+    }
+    
+/**
+ * <code>[set] m</code> Assign function value at left endpoint.
+ *
+ * @param pVal:Number Numerical value of function value.
+ * 
+ * @return Nothing.  Assigns f(a) = y.
+ * 
+ * @since 1.0
+ * 
+ */
+    public function set y(pVal:Number):void
+    {
+      _y = isNaN(pVal) ? _y : pVal;
+    }
+  }
+}

@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <link rel="shortcut icon" href="img/favicon.ico">
+  <link href="css/bootstrap.min.css" rel="stylesheet" type="text/css">
+  <link href="css/demo.css" rel="stylesheet" type="text/css">
+  <title>The Algorithmist :: Linear Least Squares</title>
+</head>
+
+<body>
+
+  <nav class="navbar-wrapper navbar-inverse navbar-fixed-top" role="navigation">
+    <div class="container">
+      <div class="navbar-header">
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-ex1-collapse">
+          <span class="sr-only">Toggle navigation</span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+        </button>
+        <p class="navbar-brand">Linear Least Squares</p>
+      </div>
+          
+      <div class="collapse navbar-collapse">
+        <ul class="nav navbar-nav">
+          <li><a href="http://www.algorithmist.net" target="_blank"><span class="glyphicon glyphicon-star"></span>The Algorithmist</a></li>
+        </ul>
+      </div><!-- /.navbar-collapse -->
+    </div>
+  </nav>
+ 
+  <div class="container-fluid">
+    <div class="jumbotron">
+    <p align="center"><span class="shadowed">The Algorithmist::Linear Least Squares</span></p>
+    </div>
+  </div>
+  
+   <div class="container">
+     <div class="row">
+       <div class="col-md-12">
+         <p class="lightTxt">This demo illustrates a linear least squares fit to a set of sample data.  Manually adjust the coordinates in the JS file to see the effect on the fit</p>
+       </div>
+     </div>
+      
+     <div class="row>">  
+       <div class="col-md-12 padded" id="canvasWrapper" align="center" >
+         <canvas width="500" height="300" id="stageCanvas" style="border:1px solid #ebebeb;"></canvas>
+       </div>
+     </div>
+     
+     <div class="row">
+       <div class="col-md-12" >
+         <p id="instruct" class="lightTxt" align="center"></p>
+       </div>
+     </div>
+   </div>
+   
+   <footer>
+     <p class="lightTxt">&copy; 2013 The Algorithmist.  All rights reserved.</p>
+   </footer>
+   
+  </div>
+   
+   <script type="text/javascript" src="js/require-setup.js"></script>
+   <script data-main="js/LLSQDemo" src="js/require.js"></script>
+   
+</body>
+</html>

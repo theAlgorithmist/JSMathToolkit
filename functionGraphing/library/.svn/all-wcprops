@@ -1,0 +1,137 @@
+K 25
+svn:wc:ra_dav:version-url
+V 127
+/svn/gizmos/!svn/ver/5450/HiloPlatform/CentralCodeLibrary/trunk/src/com/explorelearning/hilo/display/graphing/functions/library
+END
+IntervalData.as
+K 25
+svn:wc:ra_dav:version-url
+V 143
+/svn/gizmos/!svn/ver/4189/HiloPlatform/CentralCodeLibrary/trunk/src/com/explorelearning/hilo/display/graphing/functions/library/IntervalData.as
+END
+SecantMarker.as
+K 25
+svn:wc:ra_dav:version-url
+V 143
+/svn/gizmos/!svn/ver/4214/HiloPlatform/CentralCodeLibrary/trunk/src/com/explorelearning/hilo/display/graphing/functions/library/SecantMarker.as
+END
+BaseFunction.as
+K 25
+svn:wc:ra_dav:version-url
+V 143
+/svn/gizmos/!svn/ver/5395/HiloPlatform/CentralCodeLibrary/trunk/src/com/explorelearning/hilo/display/graphing/functions/library/BaseFunction.as
+END
+SineWave.as
+K 25
+svn:wc:ra_dav:version-url
+V 139
+/svn/gizmos/!svn/ver/4192/HiloPlatform/CentralCodeLibrary/trunk/src/com/explorelearning/hilo/display/graphing/functions/library/SineWave.as
+END
+Marker.as
+K 25
+svn:wc:ra_dav:version-url
+V 137
+/svn/gizmos/!svn/ver/4214/HiloPlatform/CentralCodeLibrary/trunk/src/com/explorelearning/hilo/display/graphing/functions/library/Marker.as
+END
+Log.as
+K 25
+svn:wc:ra_dav:version-url
+V 134
+/svn/gizmos/!svn/ver/4211/HiloPlatform/CentralCodeLibrary/trunk/src/com/explorelearning/hilo/display/graphing/functions/library/Log.as
+END
+StepFunction.as
+K 25
+svn:wc:ra_dav:version-url
+V 143
+/svn/gizmos/!svn/ver/4193/HiloPlatform/CentralCodeLibrary/trunk/src/com/explorelearning/hilo/display/graphing/functions/library/StepFunction.as
+END
+Tan.as
+K 25
+svn:wc:ra_dav:version-url
+V 134
+/svn/gizmos/!svn/ver/4193/HiloPlatform/CentralCodeLibrary/trunk/src/com/explorelearning/hilo/display/graphing/functions/library/Tan.as
+END
+Polynomial.as
+K 25
+svn:wc:ra_dav:version-url
+V 141
+/svn/gizmos/!svn/ver/4211/HiloPlatform/CentralCodeLibrary/trunk/src/com/explorelearning/hilo/display/graphing/functions/library/Polynomial.as
+END
+MarkerEvent.as
+K 25
+svn:wc:ra_dav:version-url
+V 142
+/svn/gizmos/!svn/ver/4191/HiloPlatform/CentralCodeLibrary/trunk/src/com/explorelearning/hilo/display/graphing/functions/library/MarkerEvent.as
+END
+LinePlot.as
+K 25
+svn:wc:ra_dav:version-url
+V 139
+/svn/gizmos/!svn/ver/4658/HiloPlatform/CentralCodeLibrary/trunk/src/com/explorelearning/hilo/display/graphing/functions/library/LinePlot.as
+END
+Exp.as
+K 25
+svn:wc:ra_dav:version-url
+V 134
+/svn/gizmos/!svn/ver/4211/HiloPlatform/CentralCodeLibrary/trunk/src/com/explorelearning/hilo/display/graphing/functions/library/Exp.as
+END
+Derivative.as
+K 25
+svn:wc:ra_dav:version-url
+V 141
+/svn/gizmos/!svn/ver/4188/HiloPlatform/CentralCodeLibrary/trunk/src/com/explorelearning/hilo/display/graphing/functions/library/Derivative.as
+END
+AbsValue.as
+K 25
+svn:wc:ra_dav:version-url
+V 139
+/svn/gizmos/!svn/ver/4187/HiloPlatform/CentralCodeLibrary/trunk/src/com/explorelearning/hilo/display/graphing/functions/library/AbsValue.as
+END
+TangentMarker.as
+K 25
+svn:wc:ra_dav:version-url
+V 144
+/svn/gizmos/!svn/ver/4214/HiloPlatform/CentralCodeLibrary/trunk/src/com/explorelearning/hilo/display/graphing/functions/library/TangentMarker.as
+END
+CosineWave.as
+K 25
+svn:wc:ra_dav:version-url
+V 141
+/svn/gizmos/!svn/ver/4187/HiloPlatform/CentralCodeLibrary/trunk/src/com/explorelearning/hilo/display/graphing/functions/library/CosineWave.as
+END
+ScatterPlot.as
+K 25
+svn:wc:ra_dav:version-url
+V 142
+/svn/gizmos/!svn/ver/5411/HiloPlatform/CentralCodeLibrary/trunk/src/com/explorelearning/hilo/display/graphing/functions/library/ScatterPlot.as
+END
+FreeForm.as
+K 25
+svn:wc:ra_dav:version-url
+V 139
+/svn/gizmos/!svn/ver/5450/HiloPlatform/CentralCodeLibrary/trunk/src/com/explorelearning/hilo/display/graphing/functions/library/FreeForm.as
+END
+Highlight.as
+K 25
+svn:wc:ra_dav:version-url
+V 140
+/svn/gizmos/!svn/ver/4201/HiloPlatform/CentralCodeLibrary/trunk/src/com/explorelearning/hilo/display/graphing/functions/library/Highlight.as
+END
+TangentLine.as
+K 25
+svn:wc:ra_dav:version-url
+V 142
+/svn/gizmos/!svn/ver/5395/HiloPlatform/CentralCodeLibrary/trunk/src/com/explorelearning/hilo/display/graphing/functions/library/TangentLine.as
+END
+ComplexStepFunction.as
+K 25
+svn:wc:ra_dav:version-url
+V 150
+/svn/gizmos/!svn/ver/5397/HiloPlatform/CentralCodeLibrary/trunk/src/com/explorelearning/hilo/display/graphing/functions/library/ComplexStepFunction.as
+END
+Linear.as
+K 25
+svn:wc:ra_dav:version-url
+V 137
+/svn/gizmos/!svn/ver/4639/HiloPlatform/CentralCodeLibrary/trunk/src/com/explorelearning/hilo/display/graphing/functions/library/Linear.as
+END

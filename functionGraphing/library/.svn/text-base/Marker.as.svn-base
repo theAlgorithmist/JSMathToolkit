@@ -1,0 +1,518 @@
+/**
+ * <p><code>Marker</code> is a helper class for plotting an interactive marker that is constrained to the plot of another function.  The marker has a
+ * rollover graphic that displays the value of either the derived function or its derivative.</p>
+ * 
+ * <p>This function accepts the following parameters<br><br>
+ * <b>marker</b> - reference to a symbol (<code>center-registered MovieClip</code>) used to intantiate the marker graphic.<br>
+ * <b>style</b> - style used to create rollover text (defaults to bold, centered).<br>
+ * <b>fontSize</b> - font size used to render rollover text (defaults to 12-pt).<br>
+ * <b>rolloverText</b> - either <code>BaseFunction.FUNCTION</code> to display the derived function's y-coordinate or <code>BaseFunction.DERIVATIVE</code> to display the
+ * derived function's derivative value on rollover (defaults to derivative)<br>
+ * <b>rolloverColor</b> - color applied to background rectangle underneath the rollover text (defaults to white).<br>
+ * <b>digits</b> - number of digits displayed after decimal place (defaults to two) and a leading zero is always formatted.<br></p>
+ *
+ * <p>The derived parameter is 'x-coord', which is the x-coordinate used to compute the function value for initial marker placement.  Thereafter, marker
+ * position is interactively determined by user action.</p>
+ *
+ * <p>Dispatches a <code>MarkerEvent (MARKER_CHANGED)</code> whenever the marker position is changed by user action, and <code>BaseFunction.ERROR Event</code> if
+ * the marker can not be instantiated or the function/derivative is not defined at the specified domain coordinate.  All events bubble (as they are dispatched
+ * on the parent container, not this Object, directly).  Use the <code>MarkerEvent marker()</code> method to access the reference to the <code>Marker</code>, then
+ * use the <code>markerValue</code> accessor function to obtain the current value associated with the marker.  This process is employed as the <code>Marker</code> is
+ * not directly in the display list and uses the <code>Sprite</code> containing the <code>Marker</code> to dispatch bubbling events.</p>
+ *
+ * @author Jim Armstrong
+ * @version 1.0
+ *
+ * @see com.explorelearning.hilo.display.graphing.functions.BaseFunction BaseFunction
+ * @see com.explorelearning.hilo.display.graphing.functions.library.MarkerEvent MarkerEvent
+ * @keyword function 
+ * 
+ */
+
+package com.explorelearning.hilo.display.graphing.functions.library
+{
+	 import com.explorelearning.hilo.display.metrics.LineMetrics;
+	 import com.explorelearning.hilo.display.core.LineUtils;
+	 import com.explorelearning.hilo.display.standard.TextLabel;
+	 import com.explorelearning.hilo.cursors.CursorEnum;
+  import com.explorelearning.hilo.managers.CursorManager;
+  import com.explorelearning.hilo.utils.StringUtils;
+	 
+	 import flash.display.DisplayObjectContainer;
+	 import flash.display.Graphics;
+	 import flash.display.MovieClip;
+	 import flash.display.Shape;
+	 import flash.display.Sprite;
+ 
+	 import flash.events.Event;
+  import flash.utils.getDefinitionByName;
+  import flash.utils.getQualifiedClassName;
+  import flash.events.MouseEvent;
+  import flash.display.Stage;
+
+	 public class Marker extends BaseFunction
+	 {
+	   public static const MINUS:String          = "−";
+	   public static const MARKER:String         = "marker"; 
+	   public static const STYLE:String          = "style";
+	   public static const FONT_SIZE:String      = "fontSize";
+    public static const ROLLOVER_TEXT:String  = "rolloverText";
+    public static const ROLLOVER_COLOR:String = "rolloverColor";
+    public static const DIGITS:String         = "digits";
+    public static const MARKER_CHANGED:String = "markerChanged";
+
+	   // core
+	   protected var _marker:MovieClip;         // reference to visual marker graphic (should center-registered)
+	   protected var _markerClass:String;       // symbol reference to instantiate marker
+	   protected var _style:String;             // style associated with rollover text
+	   protected var _rolloverTextType:String   // indicate what is displayed on rollover (derived function value or derivative value)
+	   protected var _curX:Number;              // current x-coordinate at which the derivative is evaluated
+	   protected var _digits:uint;              // number digits to display after decimal place
+	   protected var _rolloverColor:uint;       // color applied to background rectangle on rollover
+	   protected var _fontSize:uint;            // font size
+	    
+	   // cache reference to parent container
+	   protected var _myParent:Sprite;
+	   
+	   // everything displayed on roll over
+	   protected var _rollOverContainer:Sprite; // container for all items displayed on rollover
+	   protected var _rollOverBackground:Shape; // rectangular background
+	   protected var _label:TextLabel;          // label to display rollover text
+	   
+	   // cache unit->px
+	   protected var _pxPerUnitX:Number;
+	   protected var _pxPerUnitY:Number;
+	   
+	   // dragging this thingy?
+	   protected var _dragging:Boolean;
+	   
+	   // function-constrained dragging
+	   protected var _origStageX:Number;
+	   protected var _origStageY:Number;
+	   protected var _origX:Number;
+	   protected var _stage:Stage;
+	   
+	   // value associated with this marker
+	   protected var _markerValue:Number;
+	   
+	   public function Marker():void
+	   {
+	     super();
+	     
+	     _marker      = null;
+	     _myParent    = null;
+	     _markerClass = "";
+	     _curX        = 0;
+	     _pxPerUnitX  = 0;
+	     _pxPerUnitY  = 0;
+	     _markerValue = 0;
+	     
+	     _style              = ".centered|.bold";
+	     _markerClass        = "";
+	     _fontSize           = 12;
+	     _rolloverTextType   = BaseFunction.DERIVATIVE;
+	     _digits             = 2;
+	     _rolloverColor      = 0xffffff;
+	    	_rollOverContainer  = null;
+	     _rollOverBackground = null;
+	     _label              = null;
+	     _stage              = null;
+	     
+	     _dragging   = false;
+	     _origStageX = 0;
+	     _origStageY = 0;
+	     _origX      = 0;
+	   }
+	   
+/**
+ * <code>[get] markerValue</code> Access the current auxiliary value of the <code>Marker</code>.
+ * 
+ * @return Number Derived function's value or derivative at the current x-coordinate depending on whether the <b>rolloverText</b> parameter is set to 
+ * BaseFunction.FUNCTION or BaseFunction.DERIVATIVE.
+ * 
+ * @since 1.0
+ */
+	   override public function get markerValue():Number { return _rolloverTextType == BaseFunction.FUNCTION ? _derived.eval(_curX) : _derived.derivative(_curX); }
+	   
+/**
+ * <code>[get] domainValue</code> Access the current domain value of this <code>Marker</code>.
+ * 
+ * @return Number Current x-coordinate of the interactive <code>Marker</code>.
+ * 
+ * @since 1.0
+ */
+	   override public function get domainValue():Number { return _curX; }
+	   
+/**
+ * <code>[get] rangeValue</code> Access the current range value of this <code>Marker</code>.
+ * 
+ * @return Number Current y-coordinate of the interactive <code>Marker</code>, provided the base function reference has been set, otherwise <code>NaN</code>.
+ * 
+ * @since 1.0
+ */
+	   override public function get rangeValue():Number { return _derived != null ? _derived.eval(_curX) : NaN; }
+    
+/**
+ * <code>[set] params</code> Assign the basic parameters required to plot this <code>Marker</code>.
+ * 
+ * @param pParams:String This function accepts the following parameters<br><br>
+ * <b>marker</b> - reference to a symbol (<code>center-registered MovieClip</code>) used to intantiate the marker graphic.<br>
+ * <b>style</b> - style used to create rollover text (defaults to bold, centered).<br>
+ * <b>fontSize</b> - font size used to render rollover text (defaults to 12-pt).<br>
+ * <b>rolloverText</b> - either <code>BaseFunction.FUNCTION</code> to display the derived function's y-coordinate or <code>BaseFunction.DERIVATIVE</code> to display the
+ * derived function's derivative value on rollover (defaults to derivative)<br>
+ * <b>rolloverColor</b> - color applied to background rectangle underneath the rollover text (defaults to white).<br>
+ * <b>digits</b> - number of digits displayed after decimal place (defaults to two) and a leading zero is always formatted..
+ * 
+ * @return Nothing.
+ * 
+ * @since 1.0
+ */
+    override public function set params(pParams:String):void
+    {
+      if( pParams == "" )
+      {
+        return;
+      }
+      
+      var allParams:Array = pParams.split(",");
+      for( var i:uint=0; i<allParams.length; ++i )
+      {
+        var p:Array = allParams[i].split(":");
+        switch( p[0] )
+        {
+          case MARKER:
+            _markerClass = p[1];
+          break;
+         
+	         case STYLE:
+	           _style = p[1];
+	         break;
+	        
+          case ROLLOVER_TEXT:
+            _rolloverTextType = p[1] == BaseFunction.FUNCTION || BaseFunction.DERIVATIVE ? p[1] : _rolloverTextType;
+          break;
+         
+          case ROLLOVER_COLOR:
+            var n:Number   = Number(p[1]);
+            _rolloverColor = !isNaN(n) && n >= 0 ? uint(n) : _rolloverColor;
+          break;
+         
+          case DIGITS:
+            n       = Number(p[1]);
+            _digits = !isNaN(n) && n >= 0 ? uint(n) : _digits;
+          break;
+         
+          case FONT_SIZE:
+            n         = Number(p[1]);
+            _fontSize = !isNaN(n) && n >= 0 ? uint(n) : _fontSize;
+          break;
+        }
+      }
+    }
+    
+/**
+ * <code>[set] derivedParams</code> Assign parameters relevant to the function from which this <code>Marker</code> is derived.
+ * 
+ * @param pParams:String The single derived parameter is 'x-coord', which is the x-coordinate used to compute the function value for initial marker placement.
+ * 
+ * @return Nothing.  After initial <code>Marker</code> placement, the x-coordinate is adjusted by user action.
+ * 
+ * @since 1.0
+ */
+    override public function set derivedParams(pParams:String):void
+    {
+      if( pParams == "" )
+      {
+        return;
+      }
+      
+      var p:Array = pParams.split(":");
+      if( p[0].toLowerCase() == "x-coord" )
+      {
+        var myX:Number = Number(p[1]);
+        _curX          = isNaN(myX) ? 0 : myX;
+        
+        var myY:Number = _derived.eval(_curX);
+        if( !isNaN(myY) )
+        {
+          if( _marker != null )
+          {
+            _marker.x = _curX*_pxPerUnitX;
+            _marker.y = -myY*_pxPerUnitY;
+          }
+        }
+      }
+    }
+    
+/**
+ * @inheritDoc
+ */
+    override public function plot(pCanvas:Sprite, pPxPerUnitX:Number, pPxPerUnitY:Number):void
+    {
+      // this is not really a plot or drawing in that the marker is a pre-defined symbol - this function sets up the marker symbol and manages
+      // its interactivity.  This can be done as a reference to the parent sprite is provided.
+      if( _derived == null || pCanvas == null )
+      {
+        return;
+      }
+     
+      _pxPerUnitX = pPxPerUnitX;
+	     _pxPerUnitY = pPxPerUnitY;
+	     
+      // no marker, then init everything
+      if( _marker == null )
+      {
+        _myParent = pCanvas;
+        
+        try
+				    {
+          var MarkerClass:Class = getDefinitionByName(_markerClass) as Class; 
+          _marker               = new MarkerClass() as MovieClip;
+             
+          var myY:Number = _derived.eval(_curX);
+          if( !isNaN(myY) )
+          {
+            _marker.x = _curX*_pxPerUnitX;
+            _marker.y = -myY*_pxPerUnitY;
+            
+            _marker.addEventListener(MouseEvent.ROLL_OVER, mouseEnter);
+            _marker.addEventListener(MouseEvent.ROLL_OUT , mouseLeave);
+            _marker.addEventListener(MouseEvent.MOUSE_DOWN, mouseDown);
+               
+            // create remaining assets
+            _rollOverContainer  = new Sprite();
+	           _rollOverBackground = new Shape();
+	           _label              = new TextLabel();
+	              
+	           // compute width and height of TextLabel based on number of digits to display
+	           var test:String = MINUS + "9";
+	           if( _digits > 0 )
+	           {
+	             test += ".";
+	             for( var i:uint=0; i<_digits; ++i )
+	             {
+	               test += "9";
+	             }
+	           }
+	           
+	           _label.init(<learningObject style={_style} text={test} fontSize={_fontSize} />);
+	           var w:Number = _label.width;
+	           var h:Number = _label.height;
+	           
+	           var g:Graphics = _rollOverBackground.graphics;
+	           g.lineStyle(1,0x000000);
+	           g.beginFill(_rolloverColor);
+	           g.drawRect(0,0,w,h);
+	           
+	           _rollOverContainer.x = _marker.x - Math.round(0.5*w);
+	           _rollOverContainer.y = _marker.y - Math.round(0.5*_marker.height) - h - 4;
+	           
+	           _rollOverContainer.addChild(_rollOverBackground);
+	           _rollOverContainer.addChild(_label);
+	           
+	           _rollOverContainer.visible = false;
+	           pCanvas.addChild(_marker);
+	           pCanvas.addChild(_rollOverContainer);
+          }
+          else
+          {
+            if( _myParent != null )
+            {
+              _myParent.dispatchEvent( new Event(BaseFunction.ERROR, true) );
+            }
+          }
+        }
+        catch(err:Error)
+				    {
+					     trace("ERROR::[" + getQualifiedClassName(this) + "]::plotDerived()::failed while creating marker " + _markerClass + "\n" + err.message);
+					     if( _myParent != null )
+          {
+            _myParent.dispatchEvent( new Event(BaseFunction.ERROR, true) );
+          }
+				    }
+      }
+      else
+      {
+        myY = _derived.eval(_curX);
+        if( !isNaN(myY) )
+        {
+          _marker.x = _curX*_pxPerUnitX;
+          _marker.y = -myY*_pxPerUnitY;
+        }
+      }
+    }
+    
+/**
+ * <code>destroy</code> Prepare this <code>Marker</code> for garbage collection.
+ * 
+ * @return Nothing.  The <code>Marker</code> may be safely deleted after calling this method.
+ * 
+ * @since 1.0
+ */
+    override public function destroy():void
+    {
+      if( _rollOverContainer != null )
+      {
+        if( _label != null )
+        {
+          _label.destroy();
+          if( _rollOverContainer.contains(_label) )
+          {
+            _rollOverContainer.removeChild(_label);
+          }
+          _label = null;
+        }
+         
+        if( _rollOverBackground != null )
+        {
+          _rollOverBackground.graphics.clear();
+          if( _rollOverContainer.contains(_rollOverBackground) )
+          {
+            _rollOverContainer.removeChild(_rollOverBackground);
+          }
+          _rollOverBackground = null;
+        }
+        
+        var s:DisplayObjectContainer = _rollOverContainer.parent;
+        s.removeChild(_rollOverContainer);
+      }
+      
+      if( _myParent != null && _marker != null )
+      {
+        if( _myParent.contains(_marker) )
+        {
+          _myParent.removeChild(_marker);
+          _marker = null;
+        }
+      }
+      
+      if( _stage != null )
+      {
+        _stage.removeEventListener(MouseEvent.MOUSE_MOVE, mouseMove);
+        _stage.addEventListener(MouseEvent.MOUSE_UP, mouseUp);
+      }
+      
+      _myParent = null;
+    }
+    
+    protected function updateLabel(pText:String):void
+    {
+      _label.text  = pText;
+	     var w:Number = _label.width;
+	     var h:Number = _label.height;
+	           
+	     var g:Graphics = _rollOverBackground.graphics;
+	     g.clear();
+	     g.lineStyle(1,0x000000);
+	     g.beginFill(_rolloverColor);
+	     g.drawRect(0,0,w,h);
+	           
+	     _rollOverContainer.x = _marker.x - Math.round(0.5*w);
+	     _rollOverContainer.y = _marker.y - Math.round(0.5*_marker.height) - h - 4;
+    }
+    
+    protected function mouseEnter(pEvent:MouseEvent):void
+    {
+      if( !_dragging )
+      {
+        var value:Number = _rolloverTextType == BaseFunction.FUNCTION ? _derived.eval(_curX) : _derived.derivative(_curX);
+      
+        var format:String = "";
+        if( value < 0 )
+        {
+          format += MINUS;
+        }
+      
+        format += StringUtils.toDecimalPlaces(Math.abs(value), _digits, false);
+      
+        updateLabel( format);
+        _rollOverContainer.visible = true;
+      
+        CursorManager.getInstance().setCursor(CursorEnum.GRAB_HAND);
+      }
+    }
+    
+    protected function mouseLeave(pEvent:MouseEvent):void
+    {
+      _rollOverContainer.visible = false;
+      
+      if( !_dragging )
+      {
+        CursorManager.getInstance().clearCursor();
+      }
+    }
+    
+    protected function mouseDown(pEvent:MouseEvent):void
+    {
+      // roll-over information is not visible during dragging
+       _rollOverContainer.visible = false;
+       
+      // record x-coordinate in function units at time mouse was pressed
+      _origX = _curX;
+      
+      if( _stage == null )
+      {
+        _stage = _rollOverContainer.stage;
+      }
+      
+      if( _stage != null )
+      {
+        _origStageX = _stage.mouseX;
+	       _origStageY = _stage.mouseY;
+	       
+	       _dragging = true;
+	       _stage.addEventListener(MouseEvent.MOUSE_MOVE, mouseMove);
+	       _stage.addEventListener(MouseEvent.MOUSE_UP, mouseUp);
+	     }
+    }
+    
+    protected function mouseMove(pEvent:MouseEvent):void
+    {
+      // is move valid, i.e. within visible graph boundary
+      if( _stage != null )
+      {
+        // mouse moved this many px
+        var dX:Number = _stage.mouseX - _origStageX;
+        
+        // new x-coordinate in function units
+        var newX:Number = _origX + dX/_pxPerUnitX;
+       
+        // proposed y-coordinate at the new x-coordinate
+        var newY:Number = _derived.eval(newX);
+        
+        // is this value both valid and within the visible graph boundary?
+        if( !isNaN(newY) )
+        {
+          if( newX > _graphLeft && newX < _graphRight )
+          {
+            if( newY < _graphTop && newY > _graphBottom )
+            {
+              // new move is valid - update everthing and inform all interested parties of new data
+              _curX     = newX;
+              _marker.x = _curX*_pxPerUnitX;
+              _marker.y = -newY*_pxPerUnitY;
+              
+              if( _myParent != null )
+              {
+                var event:MarkerEvent = new MarkerEvent(MARKER_CHANGED,true);
+                event.marker          = this;
+                _myParent.dispatchEvent( event );
+              }
+            }
+          }
+        }
+      }
+    }
+    
+    protected function mouseUp(pEvent:MouseEvent):void
+    {
+      if( _stage != null )
+      {
+        _stage.removeEventListener(MouseEvent.MOUSE_MOVE, mouseMove);
+        _stage.addEventListener(MouseEvent.MOUSE_UP, mouseUp);
+      }
+      _dragging = false;
+    }
+	 }
+}

@@ -1,0 +1,135 @@
+/**
+ * <p><code>LinePlot</code> is a helper class for plotting piecewise linear functions with a large number of line segments.  This function behaves in a similar
+ * manner to <code>ScatterPlot</code>, except that successive data points are connected with lines.  This function accepts no parameters; use line metrics in
+ * XML to control the graph appearance.</p>
+ * 
+ * <p>To dynamically update the drawing, add new coordinate sets via a call to <code>addData</code>.  Calling the <code>reset</code> method clears all coordinates
+ * from this function.
+ *
+ * @author Jim Armstrong
+ * @version 1.0
+ *
+ * @keyword function line
+ * 
+ */
+
+package com.explorelearning.hilo.display.graphing.functions.library
+{
+  import com.explorelearning.hilo.display.graphing.functions.FunctionTypeEnum;
+  import com.explorelearning.hilo.display.graphing.functions.QuadrantEnum;
+	 
+  import flash.display.Graphics;
+  import flash.display.Sprite;
+	 
+  import flash.utils.getDefinitionByName;
+  import flash.utils.getQualifiedClassName;
+	 
+  public class LinePlot extends ScatterPlot
+  { 
+ 
+/**
+ * <code>LinePlot</code> Construct a new LinePlot instance.
+ * 
+ * @return Nothing
+ * 
+ * @since 1.0
+ */
+    public function LinePlot():void
+    {
+      super();
+	     
+      _type = FunctionTypeEnum.LINEAR;
+	     
+      _selfPlot = true;  // function is self-plotting due to the number of line segments involved
+    }
+      
+/**
+ * <code>[set] params</code> Assign basic parameters for a <code>LinePlot</code> function.
+ * 
+ * @param pParams:String tbd
+ * 
+ * @return Nothing
+ * 
+ * @since 1.0
+ */
+    override public function set params(pParams:String):void
+    {
+      // empty
+    }
+    
+/**
+ * @inheritDoc
+ */
+    override public function plot(pCanvas:Sprite, pPxPerUnitX:Number, pPxPerUnitY:Number):void
+    {
+      if( pCanvas == null )
+      {
+        return;
+      }
+     
+      var g:Graphics = pCanvas.graphics;
+      g.clear();
+	     
+      if( _metrics == null )
+      {
+        g.lineStyle(1,0x000000);
+      }
+      else
+      {
+        g.lineStyle(_metrics.thickness, _metrics.color, _metrics.alpha);
+      }
+	  
+	  clipLeft();
+	  clipRight();
+	  
+	  // the clipping bounds are computed based on a scatter-plot; we need to make the actual limits one to the left and right for proper clipping
+	  // aginst the graph boundaries
+	  _xLeft  = _xLeft > 0 ? _xLeft-1 : 0;
+	  _xRight = _xRight < _x.length-1 ? _xRight+1 : _x.length-1;
+	  
+	  // it's okay if a small part of the graph is outside the physical graph extents because of the masking; we don't want to draw hundreds
+	  // of tiny line segments that will never be displayed.  So, we can get away without doing a formal clip since at most two segments will
+	  // be outside the visible graph area.
+			
+      if( _xLeft != -1 && _xRight != -1 )
+	  {
+	    var i:int = 0;
+		
+	    g.moveTo( _x[_xLeft]*pPxPerUnitX, -_y[_xLeft]*pPxPerUnitY );
+		
+	    for( i=_xLeft+1; i<=_xRight; ++i )
+	    {
+	      g.lineTo( _x[i]*pPxPerUnitX, -_y[i]*pPxPerUnitY );
+	    }
+	  }
+    }
+    
+/**
+ * <code>eval</code> Evaluate the <code>LinePlot</code> function.
+ * 
+ * @param pX:Number x-coordinate .
+ * 
+ * @return Number.  Currently, returns zero.  Will be implemented on-demand.
+ * 
+ * @since 1.0
+ */
+    override public function eval(pX:Number):Number
+    {   
+      return 0;
+    }
+    
+/**
+ * <code>derivative</code> Evaluate the <code>LinePlot</code> function's first derivative.
+ * 
+ * @param pX:Number x-coordinate .
+ * 
+ * @return Number.  Currently, returns zero.  Will be implemented on-demand.
+ * 
+ * @since 1.0
+ */
+    override public function derivative(pX:Number):Number
+    {
+      return 0; // tbd
+    }
+  }
+}

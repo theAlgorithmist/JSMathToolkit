@@ -1,0 +1,386 @@
+/**
+ * <p><code>FreeForm</code> is a helper class for plotting functions that are defined in a free-form, calculator style syntax that can be parsed by the
+ * <code>FunctionParser</code> class.  It is important to note that this class can only be used for plotting continuous functions.  This class may be
+ * extended and marked as self-plotting to accommodate discontinuous functions.</p>
+ * 
+ * <p>Both parameters and XML data are accepted by this function.  XML data is used to define the independent variable list and function, both which are
+ * set either once or infrequently compared to function/derivative evaluations.  The single parameter is a comma-delimited string containing the numerical
+ * values of any variable coefficients.<br><br>
+ * The XML data block has a single <code>data</code> node with two attributes, <code>vars</code> and <code>function</code>.  The <code>vars</code> attribute 
+ * is a comma-delimited list of the independent variable names such as "a,b,c,d,x" or "s,t".  Variable coefficients should be listed first and independent variable 
+ * last.  The <code>function</code> attribute describes the free-form function in the calculator-style syntax used by the <code>FunctionParser</code>, such as 
+ * "a*x + b*x^2 - 3*sin(c*x) + d*x^3".  Whitespace is allowable in the function description; it is  not allowed for the variable description.</p>
+ *
+ * <p>An example XML description of a freeform function is provided below<br><br><pre>
+ *
+ * <function id="freeForm1" class="com.explorelearning.hilo.display.graphing.functions.library.FreeForm" params="1,-1,2,1">
+	*	  <data vars="a,b,c,d,x" function="a*x + b*x^2 - 3*sin(c*x) + d*x^3" />
+ *     <lineMetrics thickness="2" color="0xff0000" alpha="1" lineStyle="line_solid" />
+ * </function>
+ * </pre><br><br>
+ * 
+ * Although the function is plotted as a function of one indepenent variable, x, the variable coefficients a, b, c, and d are treated as variables in
+ * terms of the function parser.  Notice that the plot independent variable is listed last.  This is very important.  Internally, the graphing code
+ * evaluates the function with the same coefficient values and different x-values to produce a plot.  The <code>params</code> attribute provides numerical
+ * values for the variable coefficients, a, b, c, and d, in that order.  It may be provided in XML or set dynamically via code, but values should be provided
+ * before an actual plot is performed, such as when the freeform function is specified in the <code>FunctionPlot</code> display list in XML.</p>
+ * 
+ * <p>To maximize performance, there is no error-checking on the number of numerical coefficient values vs. the total variable count.  If a plot does not
+ * appear as expected, check this area first.</p>
+ * 
+ * <p>Since the <code>FunctionParser</code> does not perform symbolic manipulation, it is not possible to format the function or its derivative.  The
+ * <code>toString()</code> method returns the current function expression string.  The function's derivative is evaluated via differencing.</p> 
+ * 
+ * @author Jim Armstrong
+ * @version 1.1
+ *
+ * @keyword function 
+ * @see com.explorelearning.hilo.utils.FunctionParser FunctionParser
+ * 
+ */
+
+package com.explorelearning.hilo.display.graphing.functions.library
+{
+  import com.explorelearning.hilo.display.graphing.functions.FunctionTypeEnum;
+	 
+  import flash.display.Graphics;
+  import flash.display.Sprite;
+	 
+  import flash.utils.getDefinitionByName;
+  import flash.utils.getQualifiedClassName;
+  import com.explorelearning.hilo.display.metrics.LineMetrics;
+  import com.explorelearning.hilo.display.graphing.functions.IPlottable;
+  import com.explorelearning.hilo.utils.FunctionParser;
+  
+  public class FreeForm extends BaseFunction
+  { 
+    // core
+    protected var _parser:FunctionParser;   // your friendly, neighborhood parser
+    protected var _functionStr:String;      // String expression for function
+    protected var _vars:Array;              // variable list
+    protected var _coef:Array;              // list of numerical values for all variable coefficients
+    protected var _data:Array;              // numerical values for all parser variables (coef + independent variable)
+    protected var _varCount:int;            // total parser variable count (independent function variable counts as one more)
+    
+    // cache parent reference and unit->px conversion
+    protected var _myParent:Sprite;
+    protected var _pxPerUnitX:Number;
+    protected var _pxPerUnitY:Number;
+    
+/**
+ * <code>FreeForm</code> Construct a new FreeForm instance.
+ *
+ */
+    public function FreeForm():void
+    {
+      super();
+	     
+      _type        = FunctionTypeEnum.FREE_FORM;
+      _selfPlot    = true;
+      _functionStr = "";
+	     
+      _parser = new FunctionParser();
+      _vars   = [];
+      _coef   = [];
+      _data   = [];
+        
+      // cache parent reference and unit->px conversion
+	  _myParent   = null;
+	  _pxPerUnitX = 0;
+	  _pxPerUnitY = 0;
+	  _varCount   = 0;
+    }
+  
+/**
+ * <code>toString</code> Return a string representation of this <code>FreeForm</code> instance.
+ *
+ * @return String Current function in the same syntax as described in XML or null string if no function has been defined.
+ */  
+    override public function toString():String { return _functionStr; }
+ 
+/**
+ * <code>[set] params</code> Set plottable parameters.
+ *
+ * @parm pParams:String Comma-delimited string containing numerical values for all variable coefficients in the current function.
+ * 
+ * @return Nothing.
+ */      
+    override public function set params(pParams:String):void
+    {
+      if( pParams == "" )
+      {
+        return;
+      }
+      
+      _coef.length = 0;
+      _coef        = pParams.split(",");
+      _varCount    = _coef.length;
+      
+	  // is it okay to evaluate the function?
+	  if( _parser.canEvaluate )
+	  {
+	    // this prohibits a downstream error in the event that function definition is dynamic and parameters are set in advance of the
+		// actual function data XML
+        redraw();
+      }
+    }
+    
+/**
+ * <code>setData</code> Assign data from XML.
+ *
+ * @parm pData:String Reference to <data> code containing the attributes 'vars' and 'function'.  The 'vars' attribute contains all function variables as required
+ * by the parser with variable coefficients first and independent variable (usually x) listed last.  The 'function' attribute contains the function description in
+ * a calculator-style syntax as described in <code>FunctionParser</code>.  An example data node looks like <data vars="a,b,c,d,x" function="a*x + b*x^2 - 3*sin(c*x) + d*x^3" />.
+ * 
+ * @return Nothing.
+ */  
+    override public function setData(pData:XML):void
+    {
+      if( pData == null )
+      {
+        return;
+      }
+      
+      if( pData.hasOwnProperty("@vars") )
+      {
+        var myVars:String = pData.@vars;
+        _vars             = myVars.split(",");
+      }
+      
+      if( pData.hasOwnProperty("@function") )
+      {
+        _functionStr = pData.attribute("function").toLowerCase();
+      }
+      
+      if( _vars.length > 0 )
+      {
+        _parser.variables = _vars;
+      }
+      
+      if( _functionStr != "" )
+      {
+        _parser.parse(_functionStr);
+      }
+      
+      redraw();
+    }
+    
+/**
+ * <code>plot</code> Plot the function.
+ * 
+ * @return Nothing.  This method plots the freeform function.  It is called by the internal function grapher in <code>FunctionPlot</code>.  There is generally no
+ * reason for the user the call this method, so its parameters are not documented.
+ */  
+    override public function plot(pCanvas:Sprite, pPxPerUnitX:Number, pPxPerUnitY:Number):void
+    {
+      if( !pCanvas || !_parser.canEvaluate )
+      {
+        return;
+      }
+     
+      if( _myParent == null )
+      {
+        _myParent = pCanvas;
+      }
+     
+      _pxPerUnitX = pPxPerUnitX;
+      _pxPerUnitY = pPxPerUnitY;
+	     
+      redraw();
+    }
+    
+    protected function redraw():void
+    {
+      if( _myParent == null )
+      {
+        return;
+      }
+      
+      var g:Graphics = _myParent.graphics;
+      g.clear();
+      
+      if( _metrics == null )
+      {
+        g.lineStyle(1,0x000000);
+      }
+      else
+      {
+        g.lineStyle(_metrics.thickness, _metrics.color, _metrics.alpha);
+      }
+	       
+      _data.length     = 0;
+      _data            = _coef.slice();
+      _data[_varCount] = 0;
+      	     
+      var delta:Number = getSampleGranularity();
+      var myX:Number   = _graphLeft;
+      var myY:Number   = eval(myX);
+      g.moveTo(myX*_pxPerUnitX, -myY*_pxPerUnitY);
+            
+      myX += delta;
+
+      while( myX < _graphRight )
+      {
+        myY = eval(myX);
+        g.lineTo(myX*_pxPerUnitX, -myY*_pxPerUnitY);
+      
+        myX += delta;
+      }
+      
+      // finish up last point
+      myY = Math.min( _graphBottom, eval(_graphRight) ); 
+      g.moveTo(_graphRight*_pxPerUnitX, -myY*_pxPerUnitY);
+    }
+       
+/**
+ * <code>eval</code> Evaluate the freeform function.
+ *
+ * @parm pX:Number x-coordinate for evaluation.
+ * 
+ * @return Number Freeform function value at the specified x-coordinate or NaN if the function has not been defined or is undefined at that value.
+ */  
+    override public function eval(pX:Number):Number
+    {
+      if( _parser == null || isNaN(pX) || !_parser.canEvaluate )
+      {
+        return NaN;
+      }
+      
+      // in the case of a derived reference, it may be necessary to evaluate a derived function before it is plotted, so the _data array may not yet 
+      // have been initialized.
+      if( _data.length == 0 )
+      {
+        _data = _coef.slice();
+      }
+      
+      _data[_varCount] = pX;
+      return _parser.evaluate(_data);
+    }
+    
+/**
+ * <code>derivative</code> Approximate the freeform function derivative.
+ *
+ * @parm pX:Number x-coordinate for evaluation.
+ * 
+ * @return Number Numerical estimate of the first derivative of the freeform function at the prescribed x-coordinate.  In unusual circumstances, numerical
+ * issues may prohibit a precise evaluation.  For most continuous functions, the approximation returns the derivative to several decimal-place accuracy.
+ * 
+ */ 
+    override public function derivative(pX:Number):Number
+    {
+      if( !_parser.canEvaluate )
+	  {
+	    // need some default in event a derivative evaluation is attempted before the function is fully defined
+	    return 0;
+      }
+	  
+      // use a central-difference formula - first, determine an appropriate starting h-value based on the magnitude of the input number.
+      // too tight with a large enough input and there could be loss of significance in the subtraction with slow-moving functions in
+      // a neighborhood of the input - also a possible loss of signinficance in division by too small an h-value.
+      
+      var h:Number   = 0.05;
+      var m:Number   = 0;
+      var myX:Number = Math.abs(pX);
+     
+      if( myX > 1 )
+      {        
+        var curX:Number = myX;
+        if( myX > 1 )
+        {
+          while( curX > 1 )
+          {
+            m    += 1;
+            curX /= (m*10); 
+          }
+
+          if( m > 1 )
+          {
+            for( var t:Number=1; t<m; t++ )
+            {
+              h *= 10;
+            }
+          }
+        }
+      }
+      else if( myX < 1 )
+      {
+        if( myX != 0 )
+        {
+          m = Math.floor(1/pX);
+          h = 0.1/m;
+        }
+      }
+
+      // iterate until relative error sufficiently small or too many iterations or a jump in relative error
+      var h2:Number    = 0.5*h;
+      var f1:Number    = eval(pX+h2);
+      var f2:Number    = eval(pX-h2);
+      var d:Number     = (f1 - f2)/h;
+      var dPrev:Number = d;
+      var rPrev:Number = Number.MAX_VALUE;
+      
+      while ( h > 0.0001 )
+      {
+        h  *= 0.5;
+        h2 *= 0.5;
+        
+        f1 = eval(pX+h2);
+        f2 = eval(pX-h2);
+        d  = (f1 - f2)/h;
+        
+        var r:Number = Math.abs( (d-dPrev)/dPrev );
+        
+        // sudden spike in relative error?
+        if( r > rPrev )
+        {
+          d = dPrev;
+          break;
+        }
+        
+        if( d <= 0.001 )
+        {
+          break;
+        }
+        else
+        {
+          dPrev = d;
+          rPrev = r;
+        }
+      }
+      
+      return d;
+    }
+    
+    private function getSampleGranularity():Number
+    {
+      // currently, granularity is a function of the graph width and distance between left and right bounds with customized rounding down to deltas of 0.001.
+      // this information is already 'encoded' in the pxPerUnitX.
+      if( _pxPerUnitX == 0 )
+      {
+        return 0.1;
+      }
+      
+      var delta:Number = 3/_pxPerUnitX;
+      
+      if( delta >= 10 )
+      {
+        delta = Math.round(delta);
+      }
+      
+      if( delta >= 0.1 )
+      {
+        delta = Math.round(delta/0.1)*0.1;
+      }
+      else if( delta >= 0.01 )
+      {
+        delta = Math.round(delta/0.01)*0.01;
+      }
+      else if( delta >= 0.001 )
+      {
+        delta = Math.round(delta/0.001)*0.001;
+      }
+      
+      return delta;
+    }
+	 }
+}

@@ -1,0 +1,616 @@
+/**
+ * <p><code>StepFunction</code> is a helper class for plotting piecewise linear step functions</p>
+ * 
+ * <p>f(x) = m(i)*x + y(i) for the i-th interval [a(i), b(i)]</p>
+ *
+ * <p>This function takes parameters <code>a</code>, <code>b</code>, <code>y</code> and <code>m</code>, to define the step function in the interval [a,b].
+ * Since multiple intervals can be defined, the parameter string has three delimiters, semicolon, comma, and colon.  A sample string is given by
+ * <br><br>a:-10,b:-5,y:2,m:1;a:0,b:5,y:0,m:2<br><br>defining two intervals, [-10,-5] and [0,5].</p>
+ *
+ * <p>The <code>a</code> parameter supports the symbol <code>-inf</code> to indicate an interval that extents to minus infinity on the left.  The <code>b</code>
+ * parameter supports the symbol <code>+inf</code> to indicate an interval that extends to plus infinity on the right.  No check is made for overlapping intervals.
+ * An example of these special symbols is given by the parameter string<br><br>params="a:-inf,b:-1.0,y:2.5,m:0;a:0,b:+inf,y:-2.5,m:0;d1:closed,d2:open" in XML.</p>
+ *
+ * <p>Each interval is plotted with dots on the end that can be either open or closed.  The derived parameters to describe the dot set are <br><br>
+ * d1:closed,d2:open,radius:3,openFill:0xffffff<br><br>where <code>d1</code> indicates the 'left' dot and <code>d2</code> indicates the 'right' dot for each interval.  Each dot has
+ * values, <code>open</code>, <code>closed</code> for filled, and <code>none</code> for no dot.  The <code>radius</code> parameter is the radius of
+ * each dot.  The optional <code>openFill</code> parameter describes a fill color for open dots to avoid having the graph background show through.  This is usually
+ * set to the graph background color.  Default values are both dots rendered with left dot closed, right dot open, and a radius of 3.  For example, if <code>plot</code> is a reference to
+ * the <code>FunctionPlot</code> instance controlling the graph, then use the code<br><br>plot.updateParams("stepfunc", "d1:none", "" )<br><br>with the function id
+ * <code>stepfunc</code> referring to the <code>StepFunction</code> to turn off the left dot for each interval.  Note that the dots represent open or closed intervals
+ * and interval closure is taken into account during evaluation of the step function.  If no dots are specified, intervals are treated as closed at each end.</p> 
+ *
+ * <p>The normal interpretation of the y-value is the y-value of the step function at the left interval endpoint.  If this endpoint -inf, the y-value is interpreted
+ * as being at the right endpoint.  Although an interval from -inf to inf could be considered a degenerate case, the y value is interpreted as the y-intercept in order
+ * to make the function unique.</p>
+ *
+ * <p>Only visible line segements of the step function are plotted and they are plotted at full extent; there is no clipping for performance reasons as
+ * the graph display is most often masked.</p>
+ *
+ * <p>Note:  To change data associated with an interval in a <code>StepFunction</code>, change all parameters in that interval.  An interval is uniquely identified
+ * by its endpoints.  If the dot-parameters do not change, there is no need to update those params as it will force redundant redraws.</p>
+ * 
+ * <p>Currently, the <code>formatFunction</code> and <code>formatDerivative</code> methods work a bit differently than other functions.  Formatting is based on the current
+ * parameters for each interval.  The normal array of parameters is not processed.  The x-coordinate is used to determine the interval and the specific functional representation
+ * in that interval is used for formatting.  This is subject to future modification.</p> 
+ *
+ * @author Jim Armstrong
+ * @version 1.0
+ *
+ * @keyword function step piecewise linear
+ * 
+ */
+
+package com.explorelearning.hilo.display.graphing.functions.library
+{
+	 import com.explorelearning.hilo.display.graphing.functions.FunctionTypeEnum;
+	 import com.explorelearning.hilo.display.graphing.functions.QuadrantEnum;
+	 import com.explorelearning.hilo.utils.StringUtils;
+	 
+	 import flash.display.Graphics;
+	 import flash.display.Sprite;
+	 
+  import flash.utils.getDefinitionByName;
+  import flash.utils.getQualifiedClassName;
+	 
+	 public class StepFunction extends BaseFunction
+	 { 
+	   // parameters
+	   protected var _intervals:Object;    // collection of IntervalData references represented all intervals in the step function
+	   protected var _dotRadius:Number;    // radius of the dots at beginning and end of step
+	      
+	   // core
+	   protected var _myParent:Sprite;     // cache parent reference
+    protected var _pxPerUnitX:Number;   // px per unit x
+    protected var _pxPerUnitY:Number;   // px per unit y	
+	   protected var _leftDot:Boolean;     // true if left dot is rendered
+	   protected var _rightDot:Boolean;    // true if right dot is rendered
+	   protected var _leftClosed:Boolean;  // true if left dot is solid (interval closed at that end), false if outline only
+	   protected var _rightClosed:Boolean; // true if right dot is solid (interval closed at that end), false if outline only
+	   protected var _openFillValue:String // String representation of the optional fill color applied to open dots
+
+/**
+ * <code>StepFunction</code> Construct a new StepFunction instance.
+ * 
+ * @return Nothing
+ * 
+ * @since 1.0
+ */
+	   public function StepFunction():void
+	   {
+	     super();
+	     
+	     _type          = FunctionTypeEnum.PIECEWISE_LINEAR;
+	     _selfPlot      = true;
+	     _dotRadius     = 4;
+	     _leftDot       = true;
+	     _rightDot      = true;
+	     _leftClosed    = true;
+	     _rightClosed   = true;
+	     _myParent      = null;
+	     _openFillValue = "";
+	     
+	     _pxPerUnitX = 0;
+	     _pxPerUnitY = 0;
+	     
+	     _intervals = new Object();
+	   }
+    
+/**
+ * <code>toString</code> Return a generic representation of the <code>StepFunction</code> function.
+ * 
+ * @return String Generic representation of the step function that requires the <code>subscriptEmbedded</code> font to be embedded for proper display.
+ * 
+ * @since 1.0
+ */
+    override public function toString():String
+    {
+      return "m" + sub("i") + "x + y" + sub("i") + ", x in [a" + sub("i") + ", b" + sub("i") + "]";
+    }
+
+    private function sub(pArg:String):String
+    {
+      return "<font size='+" + SUBSCRIPT_INCREASE + "' face='subsriptEmbedded'>"+pArg+"</font>"
+    }
+     
+/**
+ * <code>[set] params</code> Assign the parameters required to plot the <code>StepFunction</code>.
+ * 
+ * @param pParams:String Parameter string.  This function takes parameters <code>a</code>, <code>b</code>, <code>y</code> and <code>m</code>, to define the step 
+ * function in the interval [a,b]. Since multiple intervals can be defined, the parameter string has three delimiters, semicolon, comma, and colon
+ * 
+ * @return Nothing.  Assigns parameter values.   A sample parameter string is given by "a:-10,b:-5,y:2,m:1;a:0,b:5,y:0,m:2", defining two intervals, [-10,-5] and 
+ * [0,5].  The <code>a</code> parameter supports the symbol <code>-inf</code> to indicate an interval that extents to minus infinity on the left.  The <code>b</code>
+ * parameter supports the symbol <code>+inf</code> to indicate an interval that extends to plus infinity on the right.  No check is made for overlapping intervals.
+ * An example of these special symbols is given by the parameter string "a:-inf,b:-1.0,y:2.5,m:0;a:0,b:+inf,y:-2.5,m:0;d1:closed,d2:open".
+ * 
+ * @since 1.0
+ */   
+    override public function set params(pParams:String):void
+    {
+      if( pParams == "" )
+      {
+        return;
+      }
+      
+      var param:Array = pParams.split(";");
+      for( var i:uint=0; i<param.length; ++i )
+      {
+        var myParams:Array          = param[i].split(",");
+        var myInterval:IntervalData = new IntervalData();
+        var left:String             = "";
+        var right:String            = "";
+        var m:Number                = NaN;
+        var y:Number                = NaN;
+        
+        for( var j:uint=0; j<myParams.length; ++j )
+        {
+          var interval:Array = myParams[j].split(":");
+          var name:String    = interval[0].toLowerCase();
+        
+          switch( name)
+          {
+            case "a":
+              left = interval[1];
+            break;
+          
+            case "b":
+              right = interval[1];
+            break;
+          
+            case "y":
+              y = Number(interval[1]);
+            break;
+          
+            case "m":
+              m = Number(interval[1]);
+            break;
+            
+            case "d1":
+              var option:String = interval[1].toLowerCase();
+              _leftDot          = option != "none";
+              _leftClosed       = option == "closed";
+              
+              if( _myParent != null )
+              {
+                plotIntervals();
+              }
+            break;
+            
+            case "d2":
+               option      = interval[1].toLowerCase();
+              _rightDot    = option != "none";
+              _rightClosed = option == "closed";
+              
+              if( _myParent != null )
+              {
+                plotIntervals();
+              }
+            break;
+            
+            case "radius":
+              var r:Number = Number(interval[1]);
+              if( !isNaN(r) && r > 0 )
+              {
+                _dotRadius = r;
+              }
+              
+              if( _myParent != null )
+              {
+                plotIntervals();
+              }
+            break;
+            
+            case "openfill":
+              var s:String = interval[1];
+              if( s != "" && s != " " )
+              {
+                _openFillValue = s;
+                
+                if( _myParent != null )
+                {
+                  plotIntervals();
+                }
+              }
+            break;
+          }
+        }
+        
+        // process the new interval
+        var id:String = left+right;
+        if( id != "" )
+        {
+          var int:IntervalData = _intervals[id];
+          if( int == null )
+          {
+            // add to the collective
+            myInterval.left  = left;
+            myInterval.right = right;
+            if( !isNaN(m) )
+            {
+              myInterval.m = m;
+            }
+          
+            if( !isNaN(y) )
+            {
+              myInterval.y = y;
+            }
+          
+            _intervals[id] = myInterval;
+          }
+          else
+          {
+            int.m = m;
+            int.y = y;
+            
+            if( _myParent != null )
+            {
+              plotIntervals();
+            }
+          }
+        }
+      }
+    }
+    
+/**
+ * @inheritDoc
+ */
+    override public function plot(pCanvas:Sprite, pPxPerUnitX:Number, pPxPerUnitY:Number):void
+    {
+      if( pCanvas == null )
+      {
+        return;
+      }
+      
+      if( _myParent == null )
+      {
+        _myParent = pCanvas;
+      }
+     
+	     _pxPerUnitX = pPxPerUnitX;
+	     _pxPerUnitY = pPxPerUnitY;
+	     
+	     plotIntervals();
+    }
+    
+    // plot each visible interval
+    private function plotIntervals():void
+    {
+      if( _myParent == null )
+      {
+        return;
+      }
+      
+      var g:Graphics = _myParent.graphics;
+	     g.clear();
+	     
+      // determine intervals that are within current horizontal graph bounds
+	     var intervals:Array = getIntervals();
+	   
+	     // plot each interval
+	     var count:int = intervals.length;
+	     for( var i:uint=0; i<count; ++i )
+	     {
+	       // reference to current interval
+	       var int:IntervalData = intervals[i];
+	       
+	       // set line style for step line
+	       if( _metrics == null )
+	       {
+	         g.lineStyle(1,0x000000);
+	       }
+	       else
+	       {
+	         g.lineStyle(_metrics.thickness, _metrics.color, _metrics.alpha);
+	       }
+	     
+	       var a:Number = int.a;
+	       var b:Number = int.b;
+	       var y:Number = int.y;
+	       var m:Number = int.m;
+	       
+	       // artificially clip -inf and +inf - the normal interpretation of the y-value is the y-value of the step function at the left interval endpoint.
+	       // this does not apply for -inf, so the interpretation needs to be the y-value at the right endpoint.  intervals should not extend from -inf to inf, 
+	       // otherwise it's kind of not a step function, but in this case y is interpreted as a y-intercept
+	       var rightY:Number = 0;
+	       
+	       if( a == -Number.MAX_VALUE )
+	       {
+	         if( b == Number.MAX_VALUE )
+	         {
+	           var leftY:Number = m*_graphLeft + y;
+	           rightY           = m*_graphRight + y;
+	           
+	           g.moveTo(_graphLeft*_pxPerUnitX  , -leftY*_pxPerUnitY );
+	           g.lineTo(_graphRight*_pxPerUnitX , -rightY*_pxPerUnitY);
+	         }
+	         else
+	         {
+	           leftY  = y + m*(_graphLeft - b); 
+	           rightY = y;
+	           
+	           g.moveTo(_graphLeft*_pxPerUnitX, -leftY*_pxPerUnitY );
+	           g.lineTo(b*_pxPerUnitX         , -rightY*_pxPerUnitY);
+	         }
+	       }
+	       else
+	       {
+	         if ( b == Number.MAX_VALUE )
+	         {
+	           rightY = m*(_graphRight-a) + y;
+	           g.moveTo(a*_pxPerUnitX          , -y*_pxPerUnitY     );
+	           g.lineTo(_graphRight*_pxPerUnitX, -rightY*_pxPerUnitY);
+	         }
+	         else
+	         {
+	           rightY = m*(b-a) + y;
+	         
+	           g.moveTo(a*_pxPerUnitX, -y*_pxPerUnitY     );
+	           g.lineTo(b*_pxPerUnitX, -rightY*_pxPerUnitY);
+	         }
+	       }
+	       
+	       // line style for dots
+	       var myColor:uint = _metrics == null ? 0x000000 : _metrics.color;
+	       
+	       // render the dots
+	       if( _leftDot && a != -Number.MAX_VALUE )
+	       {
+	         g.lineStyle(1,myColor);
+	         
+	         // workaround for FP 9 bug
+	         g.moveTo(a*_pxPerUnitX, -y*_pxPerUnitY);
+	         
+	         if( _leftClosed )
+	         {
+	           var myFill:uint = _metrics == null ? 0x000000 : _metrics.color;
+	           g.beginFill(myFill,1);
+	         }
+	         else
+	         {
+	           if( _openFillValue != "" )
+	           {
+	             g.beginFill(uint(_openFillValue),1);
+	           }
+	         }
+	        
+	         g.drawCircle(a*_pxPerUnitX, -y*_pxPerUnitY, _dotRadius);
+	         g.endFill();
+	       }
+	       
+	       if( _rightDot && b != Number.MAX_VALUE )
+	       {
+	         g.lineStyle(1,myColor);
+	         
+	         // workaround for FP 9 bug
+	         g.moveTo(b*_pxPerUnitX, -rightY*_pxPerUnitY);
+	         
+	         if( _rightClosed )
+	         {
+	           myFill = _metrics == null ? 0x000000 : _metrics.color;
+	           g.beginFill(myFill,1);
+	         }
+	         else
+	         {
+	           if( _openFillValue != "" )
+	           {
+	             g.beginFill(uint(_openFillValue),1);
+	           }
+	         }
+	         g.drawCircle(b*_pxPerUnitX, -rightY*_pxPerUnitY, _dotRadius);
+	         g.endFill();
+	       }
+	     }
+    }
+    
+    // return an index list of all intervals that are at least partially visible in the current display range.
+    private function getIntervals():Array
+    {
+      var interval:Array = new Array();
+      for each( var int:IntervalData in _intervals )
+      {
+        var a:Number = int.a;
+        var b:Number = int.b;
+        if( !(b < _graphLeft || a > _graphRight) )
+        {
+          interval.push(int);
+        }
+      }
+      
+      return interval;
+    }
+    
+/**
+ * <code>eval</code> Evaluate the <code>StepFunction</code>.
+ * 
+ * @param pX:Number x-coordinate.
+ * 
+ * @return Number.  <code>StepFunction</code> value or <code>NaN</code> if the <code>StepFunction</code> is not defined at the specified domain value.
+ * 
+ * @since 1.0
+ */
+    override public function eval(pX:Number):Number
+    {   
+      // get the interval in which the input resides or null if it is not inside any interval
+      var int:IntervalData = getInterval(pX);
+      
+      return int == null ? NaN : int.m*(pX-int.a) + int.y; 
+    }
+    
+/**
+ * <code>derivative</code> Evaluate the <code>StepFunction</code> first derivative.
+ * 
+ * @param pX:Number x-coordinate.
+ * 
+ * @return Number.  Value of first derivative of the <code>StepFunction</code> or <code>NaN</code> if the <code>StepFunction</code> is not 
+ * defined at the specified domain value.
+ * 
+ * @since 1.0
+ */
+    override public function derivative(pX:Number):Number
+    {
+      // get the interval in which the input resides or null if it is not inside any interval
+      var int:IntervalData = getInterval(pX);
+      
+      return int == null ? NaN : int.m;
+    }
+    
+    // return an IntervalData reference to the interval containing the input x-coordinate or null if no such interval exists
+    private function getInterval(pX:Number):IntervalData
+    {
+      for each( var int:IntervalData in _intervals )
+      {
+        // check value vs. whether or not interval is closed or open at each end
+        if( (_leftClosed && pX >= int.a || !_leftClosed && pX > int.a) && 
+            (_rightClosed && pX <= int.b || !_rightClosed && pX < int.b) )
+        {
+          return int;
+        }
+      }
+      
+      return null;
+    }
+    
+/**
+ * <code>formatFunction</code> Format the functional representation of the <code>StepFunction</code> given a collection of parameter values.
+ * 
+ * @param pParams:Array Not accessed for this function.
+ * 
+ * @param pX:Number x-coordinate used to look up interval over which current <code>StepFunction</code> is defined.
+ * 
+ * @default NaN
+ * 
+ * @return String.  Formatted version of step function based on selected interval and current parameter settings.
+ * 
+ * @since 1.0
+ */
+    override public function formatFunction(pParams:Array, pX:Number=NaN):String
+    {
+      if( isNaN(pX) )
+      {
+        return "";
+      }
+      
+      var int:IntervalData = getInterval(pX);
+      if( int == null )
+      {
+        return "";
+      }
+      
+      var a:String = int.a == -Number.MAX_VALUE ? MINUS_INFINITY : int.a.toString();
+      var b:String = int.b == Number.MAX_VALUE  ? PLUS_INFINITY  : int.b.toString();
+      var m:String = int.m.toString();
+      
+      if( m.charAt(0) == "-" )
+      {
+        m = MINUS + m.substring(1,m.length);
+      }
+      
+      // compute intercept
+      var intercept:Number = -int.m*int.a + int.y;
+      var i:String         = StringUtils.toDecimalPlaces(intercept, DIGITS);
+  
+      var myStr:String = m == "0" ? "" : m+"x";
+      if( i.charAt(0) == "-" )
+      {
+        if( m != "0" )
+        {
+          myStr += " " + MINUS + " " + i.substring(1,i.length);
+        }
+        else
+        {
+          myStr += MINUS + i.substring(1,i.length);
+        }
+      }
+      else
+      {
+        if( m != "0" )
+        {
+          myStr += " + " + i;
+        }
+        else
+        {
+          myStr += i;
+        }
+      }
+      
+      if( _leftClosed )
+      {
+        myStr += ", " + a + " " + LESS_THAN_OR_EQUAL + " x ";
+      }
+      else
+      {
+        myStr += ", " + a + " " + LESS_THAN + " x ";
+      }
+      
+      if( _rightClosed )
+      {
+        myStr += LESS_THAN_OR_EQUAL + " " + b;
+      }
+      else
+      {
+        myStr += LESS_THAN + " " + b;
+      }
+      
+      return myStr;
+    }
+    
+/**
+ * <code>formatDerivative</code> Format the functional representation of the <code>StepFunction</code> first derivative given a collection of parameter values.
+ * 
+ * @param pParams:Array Not accessed for this function.
+ * 
+ * @param pX:Number x-coordinate used to look up interval over which current <code>StepFunction</code> is defined.
+ * 
+ * @default NaN
+ * 
+ * @return String.  Formatted version of step function first derivative based on selected interval and current parameter settings.
+ * 
+ * @since 1.0
+ */
+    override public function formatDerivative(pParams:Array, pX:Number=NaN):String
+    {
+      if( isNaN(pX) )
+      {
+        return "";
+      }
+      
+      var int:IntervalData = getInterval(pX);
+      if( int == null )
+      {
+        return "";
+      }
+      
+      var a:String = int.a == -Number.MAX_VALUE ? MINUS_INFINITY : int.a.toString();
+      var b:String = int.b == Number.MAX_VALUE  ? PLUS_INFINITY  : int.b.toString();
+      var m:String = int.m.toString();
+      
+      if( m.charAt(0) == "-" )
+      {
+        m = MINUS + m.substring(1,m.length);
+      }
+      
+      var myStr:String = m;
+      
+      if( _leftClosed )
+      {
+        myStr += ", " + a + " " + LESS_THAN_OR_EQUAL + " x ";
+      }
+      else
+      {
+        myStr += ", " + a + " " + LESS_THAN + " x ";
+      }
+      
+      if( _rightClosed )
+      {
+        myStr += LESS_THAN_OR_EQUAL + " " + b;
+      }
+      else
+      {
+        myStr += LESS_THAN + " " + b;
+      }
+      
+      return myStr;
+    }
+	 }
+}

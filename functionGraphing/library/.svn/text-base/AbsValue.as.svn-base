@@ -1,0 +1,292 @@
+/**
+ * <p><code>AbsValue</code> is a helper class for plotting the absolute value function</p>
+ * 
+ * <p>a*abs(x) + b</p>
+ *
+ * <p>This function takes parameters <code>a</code> and <code>b</code>, with <code>a = 1</code> and <code>b = 1</code> as defaults.</p>
+ *
+ * @author Jim Armstrong
+ * @version 1.0
+ *
+ * @keyword function absolue value
+ * 
+ */
+
+package com.explorelearning.hilo.display.graphing.functions.library
+{
+	 import com.explorelearning.hilo.display.graphing.functions.FunctionTypeEnum;
+	 import com.explorelearning.hilo.display.graphing.functions.QuadrantEnum;
+	 
+	 import flash.display.Graphics;
+	 import flash.display.Sprite;
+	 
+  import flash.utils.getDefinitionByName;
+  import flash.utils.getQualifiedClassName;
+
+	 public class AbsValue extends BaseFunction
+	 { 
+	   // parameters
+	   protected var _a:Number;
+	   protected var _b:Number;
+	   
+/**
+ * <code>AbsValue</code> Construct a new AbsValue instance.
+ * 
+ * @return Nothing
+ * @since 1.0
+ */
+	   public function AbsValue():void
+	   {
+	     super();
+	     
+	     _type     = FunctionTypeEnum.PIECEWISE_LINEAR;
+	     _selfPlot = true;
+	     
+	     _a = 1;
+	     _b = 1;
+	   }
+    
+/**
+ * <code>toString</code> Return a <code>String</code> representation of this function
+ * 
+ * @return String "a|x| + b"
+ * @since 1.0
+ */
+    override public function toString():String { return "a|x| + b"; }
+    
+/**
+ * <code>[set] params</code> Assign function parameters
+ * 
+ * @param pParams:String The <code>AbsValue</code> function takes parameters <code>a</code> and <code>b</code>, with <code>a = 1</code> and <code>b = 1</code> as defaults.
+ * 
+ * @return Nothing
+ * @since 1.0
+ */
+    override public function set params(pParams:String):void
+    {
+      if( pParams == "" )
+      {
+        return;
+      }
+      
+      var param:Array = pParams.split(",");
+      for( var i:uint=0; i<param.length; ++i )
+      {
+        var myParams:Array = param[i].split(":");
+        var name:String    = myParams[0].toLowerCase();
+        var num:Number     = myParams[1];
+        
+        switch( name)
+        {
+          case "a":
+            _a = isNaN(num) ? _a : num;
+          break;
+          
+          case "b":
+            _b = isNaN(num) ? _b : num;
+          break;
+        }
+      }
+    }
+    
+/**
+ * @inheritDoc
+ */
+    override public function plot(pCanvas:Sprite, pPxPerUnitX:Number, pPxPerUnitY:Number):void
+    {
+      if( pCanvas == null )
+      {
+        return;
+      }
+     
+	     var g:Graphics = pCanvas.graphics;
+	     g.clear();
+	     
+	     if( _metrics == null )
+	     {
+	       g.lineStyle(1,0x000000);
+	     }
+	     else
+	     {
+	       g.lineStyle(_metrics.thickness, _metrics.color, _metrics.alpha);
+	     }
+	     
+	     // plot depends on location of zero-y relative to current graph bounds
+	     
+	     // x < 0
+	     var left:Number           = _graphLeft;
+	     var right:Number          = 0;
+	     var leftIntercept:Number  = -_a*_graphLeft  + _b;
+	       
+	     if( leftIntercept > _graphTop )
+	     {
+	       left          = (_graphTop - _b)/-_a;
+	       leftIntercept = _graphTop;
+	     }
+	     else if( leftIntercept < _graphBottom )
+	     {
+	       left          = (_graphBottom - _b)/-_a;
+	       leftIntercept = _graphBottom;
+	     }
+	          
+	     g.moveTo(left*pPxPerUnitX, -leftIntercept*pPxPerUnitY);
+	     g.lineTo(0               , -_b*pPxPerUnitY           );
+	     
+	     // x >= 0
+	     left                      = 0;
+	     right                     = _graphRight;
+	     var rightIntercept:Number = _a*_graphRight + _b;
+	         
+	     if( rightIntercept > _graphTop )
+	     {
+	       right          = (_graphTop - _b)/_a;
+	       rightIntercept = _graphTop;
+	     }
+	     else if( rightIntercept < _graphBottom )
+	     {
+	       right          = (_graphBottom - _b)/_a;
+	       rightIntercept = _graphBottom;
+	     }
+	            
+	     g.moveTo(0                , -_b*pPxPerUnitY            );
+	     g.lineTo(right*pPxPerUnitX, -rightIntercept*pPxPerUnitY);
+    }
+    
+/**
+ * <code>eval</code> Evaluate the <code>AbsValue</code> function.
+ *
+ * @parm pX:Number x-coordinate for evaluation.
+ * 
+ * @return Number function value at the specified x-coordinate.
+ */ 
+    override public function eval(pX:Number):Number
+    {   
+      return _a*Math.abs(pX) + _b;
+    }
+    
+/**
+ * <code>derivative</code> Evaluate the <code>AbsValue</code> function first derivative.
+ *
+ * @parm pX:Number x-coordinate for evaluation.
+ * 
+ * @return Number Value of first derivative at the specified x-coordinate or <code>NaN</code> if x = 0.
+ * 
+ */ 
+    override public function derivative(pX:Number):Number
+    {
+      if( pX == 0 )
+      {
+        return NaN;
+      }
+      
+      return pX < 0 ? -_a : _a;
+    }
+    
+    // bounds are used for clipping, so return them accurately if it's easy; if not, don't worry about it
+    override protected function computeBounds():void
+    {
+	     _bottom = _b;
+    }
+    
+/**
+ * <code>formatFunction</code> Format the symbolic form of the <code>AbsValue</code> function given an array of parameters.
+ *
+ * @param pParams:Array First element is the <code>a</code> parameter and second element is the <code>b</code> parameter in the expression a|x| + b.  Both
+ * elements should be of <code>String</code> type.
+ * 
+ * @return String Formatted version of the function.  For example, a="a" and b="-1" results in the String a|x| - 1.
+ * 
+ */ 
+    override public function formatFunction(pParams:Array, pX:Number=NaN):String
+    {
+      if( pParams.length == 0 )
+      {
+        return "0";
+      }
+      
+      var a:String = pParams[0];
+      var b:String = pParams.length == 1 ? "0" : pParams[1];
+      
+      var myStr:String = "";
+     
+      if( a == "" || a == " " || a == "0" )
+      {
+        if( b == "" || b == " " || b == "0" )
+        {
+          return "0";
+        }
+        else
+        {
+          return b.charAt(0) == "-" ? MINUS + b.substring(1,b.length) : b; 
+        }
+      }
+      
+      if( a == "1" )
+      {
+        return "|x|" + ( b.charAt(0) == "-" ? MINUS + b.substring(1,b.length) : b ); 
+      }
+      
+      if( a == "-1" )
+      {
+        return MINUS + "|x|" + ( b.charAt(0) == "-" ? MINUS + b.substring(1,b.length) : b ); 
+      }
+      
+        // leading minus?
+      if( a.charAt(0) == "-" )
+      {
+        myStr = a.substring(1,a.length) + "x";
+      }
+      else
+      {
+        myStr = a + "x";
+      }
+    
+      if( b == "" || b == " " || b == "0" )
+      {
+        return myStr;
+      }
+        
+      if( b.charAt(0) == "-" )
+      {
+        return myStr + " " + MINUS + " " + b.substring(1,b.length);
+      }
+      else
+      {
+        return myStr + " " + PLUS + " " + b;
+      }
+    }
+    
+/**
+ * <code>formatDerivative</code> Format the symbolic form of the <code>AbsValue</code> function first derivative given an array of parameters.
+ *
+ * @param pParams:Array First element is the <code>a</code> parameter and second element is the <code>b</code> parameter in the expression a|x| + b.  Both
+ * elements should be of <code>String</code> type.
+ * 
+ * @return String Formatted version of the functional representation of the first derivative.
+ * 
+ */ 
+    override public function formatDerivative(pParams:Array, pX:Number=NaN):String
+    {
+      if( pParams.length == 0 )
+      {
+        return "0";
+      }
+      
+      var a:String = pParams[0];
+      if( a == "" || a == " " || a == "0" )
+      {
+        return "0";
+      }
+        
+      if( a.charAt(0) == "-" )
+      {
+        var a1:String = a.substring(1,a.length)
+        return a1 + " , x " + BaseFunction.LESS_THAN + " 0, " + MINUS + a1 + ", x " + BaseFunction.GREATER_THAN + " 0";
+      }
+      else
+      {
+        return MINUS + a + " , x " + BaseFunction.LESS_THAN + " 0, " + a + ", x " + BaseFunction.GREATER_THAN + " 0";
+      }
+    }
+	 }
+}

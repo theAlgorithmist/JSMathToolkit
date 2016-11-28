@@ -1,0 +1,377 @@
+/**
+* <p><code>ComplexStepFunction</code> is a helper class for plotting piecewise functions of arbitrary form.  Each function is defined over an interval and
+* should be continuous in that interval.  Each function is plotted point-to-point by sampling the function over the interval.  Only basic, not derived functions
+* are supported for each interval in this implementation.</p>
+* 
+* <p>Intervals, functions, and data for those functions are described in the <data> XML block.  No function parameters are processed through the <code>params</code>
+* setter function.  Display follows the conventions of the <code>StepFunction</code> class.  The same set of line metrics applies to all intervals.  A sample
+* data block is<br><br>
+* <pre>
+* <function id="complexStepfunc" class="com.explorelearning.hilo.display.graphing.functions.library.ComplexStepFunction">
+* <lineMetrics thickness="2" color="0xff0000" alpha="1" lineStyle="line_solid" />
+*   <data d1="closed" d2="open" radius="4" openFill="0xffffff">
+*     <interval left="-inf" right="-1" functionClass="com.explorelearning.hilo.display.graphing.functions.library.Polynomial" functionParams="-3,1,2" />
+*     <interval left="0" right="10" functionClass="com.explorelearning.hilo.display.graphing.functions.library.SineWave" functionParams="a:2,b:1,c:1" />
+*   </data>
+* </function>
+* </pre>
+* <br><br>Contents of the <code>data</code> node are sent directly to the <code>ComplexStepFunction setData()</code> method.</p>
+*
+* @author Jim Armstrong
+* @version 1.0
+*
+* @keyword function step piecewise
+* @see com.explorelearning.hilo.display.graphing.functions.library.StepFunction StepFunction
+* 
+*/
+
+package com.explorelearning.hilo.display.graphing.functions.library
+{
+	 import com.explorelearning.hilo.display.graphing.functions.FunctionTypeEnum;
+	 
+	 import flash.display.Graphics;
+	 import flash.display.Sprite;
+	 
+  import flash.utils.getDefinitionByName;
+  import flash.utils.getQualifiedClassName;
+  import com.explorelearning.hilo.display.metrics.LineMetrics;
+  import com.explorelearning.hilo.display.graphing.functions.IPlottable;
+	 
+	 public class ComplexStepFunction extends BaseFunction
+	 { 
+	   // parameters
+	   protected var _intervals:Object;    // collection of IntervalData references represented all intervals in the step function
+	   protected var _functions:Object;    // references to function for each interval
+	   protected var _dotRadius:Number;    // radius of the dots at beginning and end of each interval
+	      
+	   // core
+	   protected var _myParent:Sprite;     // cache parent reference
+    protected var _pxPerUnitX:Number;   // px per unit x
+    protected var _pxPerUnitY:Number;   // px per unit y	
+	   protected var _leftDot:Boolean;     // true if left dot is rendered
+	   protected var _rightDot:Boolean;    // true if right dot is rendered
+	   protected var _leftClosed:Boolean;  // true if left dot is solid (interval closed at that end), false if outline only
+	   protected var _rightClosed:Boolean; // true if right dot is solid (interval closed at that end), false if outline only
+	   protected var _openFillValue:String // String representation of the optional fill color applied to open dots
+
+/**
+ * <code>ComplexStepFunction</code> Create a new ComplexStepFunction instance.
+ * 
+ * @return Nothing.
+ * 
+ * @since 1.0
+ */
+	   public function ComplexStepFunction():void
+	   {
+	     super();
+	     
+	     _type          = FunctionTypeEnum.PIECEWISE_LINEAR;
+	     _selfPlot      = true;
+	     _dotRadius     = 4;
+	     _leftDot       = true;
+	     _rightDot      = true;
+	     _leftClosed    = true;
+	     _rightClosed   = true;
+	     _myParent      = null;
+	     _openFillValue = "";
+	     
+	     _pxPerUnitX = 0;
+	     _pxPerUnitY = 0;
+	     
+	     _intervals = new Object();
+	     _functions = new Object();
+	   }
+    
+/**
+ * <code>setData</code> Assign parameter data via XML.
+ * 
+ * @param pData:XML Reference to XML containing all intervals and functions used to plot in those intervals.  A sample data block is<br><br>
+ * <pre>
+ *   <data d1="closed" d2="open" radius="4" openFill="0xffffff">
+ *     <interval left="-inf" right="-1" functionClass="com.explorelearning.hilo.display.graphing.functions.library.Polynomial" functionParams="-3,1,2" />
+ *     <interval left="0" right="10" functionClass="com.explorelearning.hilo.display.graphing.functions.library.SineWave" functionParams="a:2,b:1,c:1" />
+ *   </data>
+ * </pre>
+ * 
+ * @return Nothing.  Note that parameters for the function in each interval are defined in the <code>functionParams</code> attribute of each <code>interval</code>
+ * node.
+ * 
+ * @since 1.0
+ */
+    override public function setData(pData:XML):void
+    {
+      if( pData == null )
+      {
+        return;
+      }
+      
+      if( pData.hasOwnProperty("@radius") )
+      {
+        _dotRadius = isNaN(Number(pData.@radius)) ? _dotRadius : Math.round( Math.abs(Number(pData.@radius)) );
+      }
+      
+      if( pData.hasOwnProperty("@d1") )
+      {
+        var option:String = pData.@d1.toLowerCase();
+        _leftDot          = option != "none";
+        _leftClosed       = option == "closed";
+      }
+      
+      if( pData.hasOwnProperty("@d2") )
+      {
+        option       = pData.@d2.toLowerCase();
+        _rightDot    = option != "none";
+        _rightClosed = option == "closed";
+      }
+      
+      if( pData.hasOwnProperty("@openFill" ) )
+      {
+        var s:String = pData.@openFill;
+        if( s != "" && s != " " )
+        {
+          _openFillValue = s;
+        }
+      }
+      
+      // intervals
+      var myIntervals:XMLList = pData.interval;
+      for each( var interval:XML in myIntervals )
+      {
+        var i:IntervalData = new IntervalData();
+        
+        // at the minimum, each <interval> should have left, right, and class attributes; you break it, you buy it ...
+        i.left           = interval.@left; 
+        i.right          = interval.@right;
+        var myID:String  = interval.@left + interval.@right;
+        _intervals[myID] = i;
+        
+        var myClassName:String = interval.@functionClass;
+        try
+				    {
+          var FunctionClass:Class = getDefinitionByName(myClassName) as Class; 
+          var myFunction:*        = new FunctionClass();
+          
+          _functions[myID] = myFunction;
+          
+          if( interval.hasOwnProperty("@functionParams") )
+          {
+            myFunction.params = interval.@functionParams;
+          }
+        }
+        catch(err:Error)
+				    {
+					     trace("ERROR::[" + getQualifiedClassName(this) + "]::render()::failed while creating function from class = " + myClassName + "\n" + err.message);
+				    }
+      }
+    }
+    
+/**
+ * @inheritDoc
+ */
+    override public function plot(pCanvas:Sprite, pPxPerUnitX:Number, pPxPerUnitY:Number):void
+    {
+      if( pCanvas == null )
+      {
+        return;
+      }
+      
+      if( _myParent == null )
+      {
+        _myParent = pCanvas;
+      }
+     
+	     _pxPerUnitX = pPxPerUnitX;
+	     _pxPerUnitY = pPxPerUnitY;
+	     
+	     plotIntervals();
+    }
+    
+    // plot each visible interval
+    private function plotIntervals():void
+    {
+      if( _myParent == null )
+      {
+        return;
+      }
+      
+      var g:Graphics = _myParent.graphics;
+	     g.clear();
+	     
+      // determine intervals that are within current horizontal graph bounds
+	     var info:Object     = getIntervals();
+	     var intervals:Array = info.intervals;
+	     var functions:Array = info.functions;
+	     
+	     // plot each interval
+	     var count:int = intervals.length;
+	     for( var i:uint=0; i<count; ++i )
+	     {
+	       // reference to current interval
+	       var int:IntervalData = intervals[i];
+	       var f:IPlottable     = functions[i];
+	       
+	       // set line style for step line
+	       if( _metrics == null )
+	       {
+	         g.lineStyle(1,0x000000);
+	       }
+	       else
+	       {
+	         g.lineStyle(_metrics.thickness, _metrics.color, _metrics.alpha);
+	       }
+	     
+	       var a:Number = int.a;
+	       var b:Number = int.b;
+	       var y:Number = int.y;
+	       var m:Number = int.m;
+	       
+	       // clip 
+	       a = Math.max(a, _graphLeft);
+	       b = Math.min(b, _graphRight);
+	       
+	       plotSingleInterval(g, f, a, b);
+	       
+	       // line style for dots
+	       var myColor:uint = _metrics == null ? 0x000000 : _metrics.color;
+	       
+	       // render the dots
+	       if( _leftDot && a != -Number.MAX_VALUE && int.a >= _graphLeft )
+	       {
+	         var myY:Number = f.eval(a);
+	         g.lineStyle(1,myColor);
+	         if( _leftClosed )
+	         {
+	           var myFill:uint = _metrics == null ? 0x000000 : _metrics.color;
+	           g.beginFill(myFill,1);
+	         }
+	         else
+	         {
+	           if( _openFillValue != "" )
+	           {
+	             g.beginFill(uint(_openFillValue),1);
+	           }
+	         }
+	         g.drawCircle(a*_pxPerUnitX, -myY*_pxPerUnitY, _dotRadius);
+	         g.endFill();
+	       }
+	       
+	       if( _rightDot && b != Number.MAX_VALUE && int.b <= _graphRight )
+	       {
+	         myY = f.eval(b);
+	         g.lineStyle(1,myColor);
+	         if( _rightClosed )
+	         {
+	           myFill = _metrics == null ? 0x000000 : _metrics.color;
+	           g.beginFill(myFill,1);
+	         }
+	         else
+	         {
+	           if( _openFillValue != "" )
+	           {
+	             g.beginFill(uint(_openFillValue),1);
+	           }
+	         }
+	         g.drawCircle(b*_pxPerUnitX, -myY*_pxPerUnitY, _dotRadius);
+	         g.endFill();
+	       }
+	     }
+    }
+    
+    // plot a single interval over the specified bounds
+    private function plotSingleInterval(pCanvas:Graphics, pFunction:IPlottable, pA:Number, pB:Number):void
+    {
+      // the delta-value needs to be made variable in the next round of modifications
+      var delta:Number = 0.1;
+      var myX:Number   = pA;
+      var myY:Number   = pFunction.eval(pA);
+      pCanvas.moveTo(pA*_pxPerUnitX, -myY*_pxPerUnitY);
+      myX += delta;
+     
+      while( myX < pB )
+      {
+        myY  = pFunction.eval(myX);
+        pCanvas.lineTo(myX*_pxPerUnitX, -myY*_pxPerUnitY);
+        
+        myX += delta;
+      }
+      
+      myY = pFunction.eval(pB);
+      pCanvas.lineTo(pB*_pxPerUnitX, -myY*_pxPerUnitY);
+    }
+    
+    // return an index list of all intervals that are at least partially visible in the current display range and their corresponding function
+    // references
+    private function getIntervals():Object
+    {
+      var interval:Array  = new Array();
+      var functions:Array = new Array();
+      
+      for( var id:String in _intervals )
+      {
+        var int:IntervalData = _intervals[id];
+        var a:Number     = int.a;
+        var b:Number     = int.b;
+        if( !(b < _graphLeft || a > _graphRight) )
+        {
+          interval.push(int);
+          functions.push(_functions[id]);
+        }
+      }
+      
+      return {intervals:interval, functions:functions};
+    }
+    
+/**
+ * <code>eval</code> Evaluate the <code>ComplexStepFunction</code>.
+ * 
+ * @param pX:Number x-coordinate
+ * 
+ * @return Number.  Function value or <code>NaN</code> if the function is not defined at the specified domain value.
+ * 
+ * @since 1.0
+ */
+    override public function eval(pX:Number):Number
+    {   
+      // get the interval in which the input resides or null if it is not inside any interval
+      var f:IPlottable = getFunction(pX);
+      
+      // evaluation depends on which function is represented by the interval
+      return f == null ? NaN : f.eval(pX); 
+    }
+    
+/**
+ * <code>derivative</code> Evaluate the <code>ComplexStepFunction</code> first derivative.
+ * 
+ * @param pX:Number x-coordinate
+ * 
+ * @return Number.  First derivative value or <code>NaN</code> if the derivative is not defined at the specified domain value.
+ * 
+ * @since 1.0
+ */
+    override public function derivative(pX:Number):Number
+    {
+      // get the interval in which the input resides or null if it is not inside any interval
+      var f:IPlottable = getFunction(pX);
+      
+      return f == null ? NaN : f.derivative(pX); 
+    }
+    
+    // return a reference to the function represented by the interval containing the input data point of null if the step function does not contain the input value
+    private function getFunction(pX:Number):IPlottable
+    {
+      for( var id:String in _intervals )
+      {
+        var int:IntervalData = _intervals[id];
+        var a:Number     = int.a;
+        var b:Number     = int.b;
+        if( (_leftClosed && pX >= int.a || !_leftClosed && pX > int.a) && 
+            (_rightClosed && pX <= int.b || !_rightClosed && pX < int.b) )
+        {
+          return _functions[id];
+        }
+      }
+      
+      return null;
+    }
+	 }
+}

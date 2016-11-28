@@ -1,0 +1,206 @@
+/**
+ * <p><code>TangentLine</code> is a helper class for plotting the derivative of another cartesian function, represented as the slope of the tangent
+ * to the function.  The tangent line is plotted as a line segment of fixed length or of variable length extending to the maximum bounds of the graph
+ * area, tangent to the specified function, provided the derivative exists.  The <code>derived</code> reference must be set in order to specify the 
+ * function whose derivative value is plotted.  Use the <code>Derivative</code> class to plot the actual Hodograph (trace of the velocity curve) or
+ * the functional representation of another functions's first derivative.</p>
+ * 
+ * <p>This function accepts a single parameter, 'length' which is the pixel length of the tangent-line segment.  Set the 'length' value to either the
+ * numerical pixel value or the string "auto" to have the tangent line automatically drawn to the extents of the graph boundary. The derived parameter is 'x-coord',
+ * which is the x-coordinate at which the tangent line segment is plotted.  This parameter is expected to be continuously updated.</p>
+ *
+ * @author Jim Armstrong
+ * @version 1.0
+ *
+ * @see com.explorelearning.hilo.display.graphing.functions.Derivative Derivative
+ * @keyword function derivative tangent
+ * 
+ */
+
+package com.explorelearning.hilo.display.graphing.functions.library
+{
+	 import com.explorelearning.hilo.display.graphing.functions.FunctionTypeEnum;
+	 import com.explorelearning.hilo.display.graphing.functions.QuadrantEnum;
+	 import com.explorelearning.hilo.display.graphing.functions.LineMetrics;
+	 import com.explorelearning.hilo.display.graphing.functions.LineUtils;
+	  
+	 import flash.display.Graphics;
+	 import flash.display.Sprite;
+	 import flash.events.Event;
+  import flash.utils.getDefinitionByName;
+  import flash.utils.getQualifiedClassName;
+	 
+	 public class TangentLine extends BaseFunction
+	 {
+	   protected var _length:Number;      // total length of the tangent-line segment
+	   protected var _curX:Number;        // current x-coordinate at which the derivative is evaluated
+    protected var _autoLength:Boolean; // true if length of tangent line is extended to graph boundaries
+	   
+/**
+ * <code>TangentLine</code> Construct a new <code>TangentLine</code> instance.
+ * 
+ * @return Nothing.  
+ * 
+ * @since 1.0
+ */
+	   public function TangentLine():void
+	   {
+	     super();
+	     
+	     _length     = 1;
+	     _curX       = 0;
+	     _autoLength = false;
+	   }
+	   
+/**
+ * <code>[get] domainValue</code> Access the current domain value of the <code>TangentLine</code> function.
+ * 
+ * @return Number Current x-coordinate.
+ * 
+ * @since 1.0
+ */
+	   override public function get domainValue():Number { return _curX; }
+    
+/**
+ * <code>[set] params</code> Assign the parameters required to plot the <code>TangentLine</code> function.
+ * 
+ * @param pParams:String Parameter string. This function accepts a single parameter, 'length' which is the pixel length of the tangent-line segment.  Set the 'length' 
+ * value to either the numerical pixel value or the string "auto" to have the tangent line automatically drawn to the extents of the graph boundary.
+ * 
+ * @return Nothing.
+ * 
+ * @since 1.0
+ */
+    override public function set params(pParams:String):void
+    {
+      if( pParams == "" )
+      {
+        return;
+      }
+      
+      var p:Array = pParams.split(":");
+      if( p[0].toLowerCase() == "length" )
+      {
+        var value:String = p[1];
+        if( value.toLowerCase() == "auto" )
+        {
+          _autoLength = true;
+        }
+        else
+        {
+          var l:Number = Number(p[1]);
+          _length      = isNaN(l) ? 1 : Math.max(1, l);
+          _autoLength  = false;
+        }
+      }
+    }
+    
+/**
+ * <code>[set] derivedParams</code> Assign parameters relevant to the function from which <code>TangentLine</code> is derived.
+ * 
+ * @param pParams:String Parameter string.  The derived parameter is 'x-coord', which is the x-coordinate at which the tangent line segment is plotted.
+ * 
+ * @return Nothing.
+ * 
+ * @since 1.0
+ */
+    override public function set derivedParams(pParams:String):void
+    {
+      if( pParams == "" )
+      {
+        return;
+      }
+      
+      var p:Array = pParams.split(":");
+      if( p[0].toLowerCase() == "x-coord" )
+      {
+        var myX:Number = Number(p[1]);
+        _curX          = isNaN(myX) ? 0 : myX;
+      }
+    }
+    
+/**
+ * @inheritDoc
+ */
+    override public function plot(pCanvas:Sprite, pPxPerUnitX:Number, pPxPerUnitY:Number):void
+    {
+      // line style and canvas set in advance 
+      if( _derived != null && pCanvas != null && _derived.functionCategory == FunctionTypeEnum.CARTESIAN )
+      {
+        var fY:Number = _derived.eval(_curX);
+        var m:Number  = _derived.derivative(_curX);
+        
+        var g:Graphics = pCanvas.graphics;
+        g.clear();
+        g.lineStyle(_metrics.thickness, _metrics.color, _metrics.alpha);
+                   
+        // tbd - test for dashed line and/or near-infinite slope
+        if( !isNaN(m) )
+        {
+          if( _autoLength )
+          { 
+            // intersection of tangent line with x = _graphLeft
+            var yLeft:Number = fY + m*(_graphLeft-_curX);
+            
+            // intersection of tangent line with x = _graphRight
+            var yRight:Number = fY + m*(_graphRight-_curX);
+            
+            // a little redundant code, but I hope the use of more descriptive var names in this path makes things easier to understand
+            if( _metrics.lineStyle == LineMetrics.SOLID )
+            {
+              // function is y-up, Flash is y-down
+              g.moveTo(_graphLeft*pPxPerUnitX, -yLeft*pPxPerUnitY);
+              g.lineTo(_graphRight*pPxPerUnitX, -yRight*pPxPerUnitY);
+            }
+            else
+            {
+              LineUtils.dashTo(g, _metrics, _graphLeft*pPxPerUnitX, -yLeft*pPxPerUnitY, _graphRight*pPxPerUnitX, -yRight*pPxPerUnitY);
+            }
+          }
+          else
+          {
+            // point on tangent line 1 unit to the 'left'
+            var x1:Number = _curX-1;
+            var y1:Number = fY + m*(x1-_curX);
+
+            // unit vector
+            var deltaY:Number = y1 - fY;
+            var d:Number      = Math.sqrt(1 + deltaY*deltaY);
+            var uX:Number     = -1/d;
+            var uY:Number     = deltaY/d;
+      
+            // specified units along unit vector - remember that the length is in pixels, not function units
+            var dX:Number         = uX*pPxPerUnitX;
+            var dY:Number         = uY*pPxPerUnitY;
+            var halfLength:Number = _length*0.5/Math.sqrt(dX*dX + dY*dY);
+            x1                    = _curX + halfLength*uX;
+            y1                    = fY + halfLength*uY;
+          
+            // do it again for opposite direction
+            var x2:Number = _curX - halfLength*uX;
+            var y2:Number = fY - halfLength*uY;
+        
+            if( _metrics.lineStyle == LineMetrics.SOLID )
+            {
+              // function is y-up, Flash is y-down
+              g.moveTo(x1*pPxPerUnitX, -y1*pPxPerUnitY);
+              g.lineTo(x2*pPxPerUnitX, -y2*pPxPerUnitY);
+            }
+            else
+            { 
+              LineUtils.dashTo(g, _metrics, x1*pPxPerUnitX, -y1*pPxPerUnitY, x2*pPxPerUnitX, -y2*pPxPerUnitY);
+            }
+          }
+        }
+      }
+    }
+    
+    override protected function computeBounds():void
+    {
+      _left   = -Number.MAX_VALUE;
+      _right  = Number.MAX_VALUE;
+      _top    = Number.MAX_VALUE;
+      _bottom = -Number.MAX_VALUE;
+    }  
+	 }
+}

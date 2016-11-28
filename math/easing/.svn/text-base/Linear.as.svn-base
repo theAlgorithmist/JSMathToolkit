@@ -1,0 +1,34 @@
+	/**
+	* <p><code>Linear</code> Linear easing function, adopted from robertpenner.com.</p>
+	* 
+	* @author Jim Armstrong
+	* @version 1.0
+	*
+	* 
+	*/
+
+package com.explorelearning.easing
+{
+  public class Linear 
+  {
+	   public static function easeNone (t:Number, b:Number, c:Number, d:Number):Number 
+	   {
+		    return c*t/d + b;
+	   }
+	   
+	   public static function easeIn (t:Number, b:Number, c:Number, d:Number):Number 
+	   {
+		    return c*t/d + b;
+	   }
+	   
+	   public static function easeOut (t:Number, b:Number, c:Number, d:Number):Number 
+	   {
+		    return c*t/d + b;
+	   }
+	   
+	   public static function easeInOut (t:Number, b:Number, c:Number, d:Number):Number 
+	   {
+		    return c*t/d + b;
+	   }
+	 }
+}

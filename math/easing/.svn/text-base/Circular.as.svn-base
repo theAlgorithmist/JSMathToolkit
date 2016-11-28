@@ -1,0 +1,36 @@
+	/**
+	* <p><code>Circ</code> Circular easing function, adopted from robertpenner.com.</p>
+	* 
+	* @author Jim Armstrong
+	* @version 1.0
+	*
+	* 
+	*/
+
+package com.explorelearning.easing
+{
+  public class Circular 
+  {
+	   public static function easeIn (t:Number, b:Number, c:Number, d:Number):Number 
+	   {
+		    return -c * (Math.sqrt(1 - (t/=d)*t) - 1) + b;
+	   }
+	   
+	   public static function easeOut (t:Number, b:Number, c:Number, d:Number):Number 
+	   {
+		    return c * Math.sqrt(1 - (t=t/d-1)*t) + b;
+	   }
+	   
+	   public static function easeInOut (t:Number, b:Number, c:Number, d:Number):Number 
+	   {
+		    if ((t/=d/2) < 1)
+		    {
+		      return -c/2 * (Math.sqrt(1 - t*t) - 1) + b;
+		    }
+		    else
+		    {
+		      return c/2 * (Math.sqrt(1 - (t-=2)*t) + 1) + b;
+		    }
+	   }
+	 }
+}

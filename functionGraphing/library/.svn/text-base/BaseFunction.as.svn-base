@@ -1,0 +1,610 @@
+/**
+ * <p><code>BaseFunction</code> is a pseudo-abstract base class upon which all helper classes for plotting functions are derived.  Refer to the Function Grapher
+ * User's Guide for more detail on how to extend <code>BaseFunction</code> to create custom function to be graphed. </p>
+ *
+ * @author Jim Armstrong
+ * @version 1.1 - Added reset() and addData() methods to support functions whose data is dynamically updated at runtime in a manner not suitable for updating via 
+ * setData() (the latter uses XML); support function graphs that are used as part of 'resettable' simulations.
+ *
+ * @see com.explorelearning.hilo.display.graphing.functions.IPlottable IPlottable
+ * @keyword function
+ * 
+ */
+
+package com.explorelearning.hilo.display.graphing.functions.library
+{
+  import com.explorelearning.hilo.display.graphing.functions.LineMetrics;
+  import com.explorelearning.hilo.display.graphing.functions.IPlottable;
+  import com.explorelearning.hilo.display.graphing.functions.FunctionTypeEnum;
+  import com.explorelearning.hilo.display.graphing.functions.QuadrantEnum;
+	 
+  import flash.display.Graphics;
+  import flash.display.Sprite;
+  import flash.utils.getDefinitionByName;
+  import flash.utils.getQualifiedClassName;
+	 
+  public class BaseFunction implements IPlottable
+  {
+    public static const LINEAR:String     = "linear";
+    public static const QUAD:String       = "quad";
+    public static const UNDEFINED:String  = "undefined";
+    public static const CHANGED:String    = "changed";
+    public static const ERROR:String      = "error";
+    public static const FUNCTION:String   = "function"
+    public static const DERIVATIVE:String = "deriv";
+	   
+    public static const DIGITS:uint                  = 1;
+    public static const SUPERSCRIPT_INCREASE:String  = "2";
+    public static const SUBSCRIPT_INCREASE:String    = "1";
+    public static const MINUS:String                 = "−";
+    public static const PLUS:String                  = "+";
+    public static const MULTIPLY:String              = "·"; // "*"
+    public static const INFINITY_SYMBOL:String       = "∞";
+    public static const MINUS_INFINITY:String        = MINUS + INFINITY_SYMBOL;
+    public static const PLUS_INFINITY:String         = PLUS + INFINITY_SYMBOL;
+    public static const LESS_THAN:String             = "&lt;";
+    public static const GREATER_THAN:String          = "&gt;";
+    public static const LESS_THAN_OR_EQUAL:String    = "≤";
+    public static const GREATER_THAN_OR_EQUAL:String = "≥";
+	   
+    protected var _category:String;   // function category
+    protected var _type:String;       // function type
+    protected var _selfPlot:Boolean;  // true if self-plotting (if a non-derived function as derived functions always plot/display themselves)
+	   
+    // quadrants and function bounds
+    protected var _quadrants:String;
+    protected var _top:Number;
+    protected var _left:Number;
+    protected var _right:Number;
+    protected var _bottom:Number;
+	   
+    // visible graph boundaries (in function units) - refers to the visible graph extents
+    protected var _graphLeft:Number;
+    protected var _graphTop:Number;
+    protected var _graphRight:Number;
+    protected var _graphBottom:Number;
+	   
+    // graphing information associated with this function
+    protected var _metrics:LineMetrics;
+    protected var _plotType:String;
+    protected var _derived:IPlottable;
+	   
+/**
+ * <code>BaseFunction</code> Construct a new BaseFunction instance.
+ * 
+ * @return Nothing
+ * @since 1.0
+ */
+    public function BaseFunction():void
+    { 
+      super();
+	     
+      _category  = FunctionTypeEnum.CARTESIAN;
+      _type      = FunctionTypeEnum.NONE;
+      _quadrants = QuadrantEnum.ALL;
+	     
+      _top    = Number.MAX_VALUE;
+      _left   = -Number.MAX_VALUE;
+      _right  = Number.MAX_VALUE;
+      _bottom = -Number.MAX_VALUE;
+	     
+      _graphLeft   = 0;
+      _graphTop    = 0;
+      _graphRight  = 0;
+      _graphBottom = 0;
+	   
+      _metrics  = null;
+      _derived  = null;
+      _plotType = LINEAR;
+      _selfPlot = false;
+    }
+		  
+/**
+ * <code>toString</code> Return a generic representation of the function.
+ * 
+ * @return String Generic representation of the function such as mx + b for a straight line.
+ * 
+ * @since 1.0
+ */ 
+    public function toString():String { return ""; }
+		  
+/**
+ * <code>[get] functionCategory</code> Access the category to which this function belongs.
+ * 
+ * @return String One of the symbolic <code>FunctionTypeEnum</code> codes, representing the function category, i.e. cartesian, polar, or parametric.
+ * @see com.explorelearning.hilo.display.graphing.functions.FunctionTypeEnum FunctionTypeEnum
+ * @since 1.0
+ */
+    public function get functionCategory():String { return _category; }
+    
+/**
+ * <code>[get] functionType</code> Access the type of function.
+ * 
+ * @return String One of the symbolic <code>FunctionTypeEnum</code> codes, representing the function type.
+ * @see com.explorelearning.hilo.display.graphing.functions.FunctionTypeEnum FunctionTypeEnum
+ * @since 1.0
+ */
+    public function get functionType():String { return _type; }
+    
+/**
+ * <code>[get] isSelfPlot</code> Access whether or not the function plots itself.
+ * 
+ * @return Boolean True if the function is self-plotting.  If so, it must override the <code>plot</code> method and be responsible for plotting itself given
+ * a parent container reference and axis scaling information.  Otherwise, the function must be continuous over the reals and it is plotted via function evalutions
+ * from the internal function grapher.
+ * 
+ * @since 1.0
+ */
+    public function get isSelfPlot():Boolean { return _selfPlot; }
+    
+/**
+ * <code>[get] top</code> Access the function's upper bound in function coordinates.
+ * 
+ * @return Number Upper bound of function (in function coordinates, not flash coordinates as Flash is y-down), provided the bound is easy to compute.  Otherwise
+ * <code>Number.MAX_VALUE</code> is used as a bound.  Bounds are used by the internal function grapher to avoid function evaluations in regions where the function
+ * is not visible.  Bound information is ignored in a self-plotting function as any relevant bound information is taken into account in the user-written <code>plot</code>
+ * method.
+ * 
+ * @since 1.0
+ */
+    public function get top():Number { return _top;    }
+		  
+/**
+ * <code>[get] leftp</code> Access the function's minimum domain bound.
+ * 
+ * @return Number Minimum x-coordinate bound of the function, provided the bound is easy to compute.  Otherwise <code>-Number.MAX_VALUE</code> is used as a bound.  
+ * Bounds are used by the internal function grapher to avoid function evaluations in regions where the function is not visible.  Bound information is ignored 
+ * in a self-plotting function as any relevant bound information is taken into account in the user-written <code>plot</code> method.
+ * 
+ * @since 1.0
+ */
+    public function get left():Number   { return _left;   }
+    
+/**
+ * <code>[get] right</code> Access the function's maximum domain bound.
+ * 
+ * @return Number Maximum x-coordinate bound of the function, provided the bound is easy to compute.  Otherwise <code>Number.MAX_VALUE</code> is used as a bound.  
+ * Bounds are used by the internal function grapher to avoid function evaluations in regions where the function is not visible.  Bound information is ignored 
+ * in a self-plotting function as any relevant bound information is taken into account in the user-written <code>plot</code> method.
+ * 
+ * @since 1.0
+ */    
+    public function get right():Number { return _right;  }
+    
+/**
+ * <code>[get] top</code> Access the function's lower bound in function coordinates.
+ * 
+ * @return Number Lower bound of function (in function coordinates, not flash coordinates as Flash is y-down), provided the bound is easy to compute.  Otherwise
+ * <code>-Number.MAX_VALUE</code> is used as a bound.  Bounds are used by the internal function grapher to avoid function evaluations in regions where the function
+ * is not visible.  Bound information is ignored in a self-plotting function as any relevant bound information is taken into account in the user-written <code>plot</code>
+ * method.
+ * 
+ * @since 1.0
+ */    
+    public function get bottom():Number { return _bottom; }
+    
+/**
+ * <code>[get] lineMetrics</code> Access the line metrics used to plot the function.
+ * 
+ * @return LineMetrics Reference to <code>LineMetrics</code> instance whose properties are used to graph the function.
+ * @see com.explorelearning.hilo.display.metrics.LineMetrics LineMetrics
+ * 
+ * @since 1.0
+ */
+    public function getMetrics():LineMetrics { return _metrics == null ? new LineMetrics() : _metrics; }
+    
+/**
+ * <code>[get] plotType</code> Access the type of plot.
+ * 
+ * @return String <code>BaseFunction.LINEAR</code> if the function is to be plotted with line segments or <code>BaseFunction.QUAD</code> if the function is to be
+ * approximated and plotted with quadratic Beziers.  The function must not be self-plotting and continuous over the entire domain in order for this value to be
+ * used by the internal function grapher.
+ * 
+ * @since 1.0
+ */
+    public function get plotType():String { return _plotType; }
+    
+/**
+ * <code>[get] isDerived</code> Access whether or not this function is derived from the definition of another function.
+ * 
+ * @return Boolean true if this is a derived function.  For example, <code>Derivative</code> is derived as it's display depends on the definition of another function.
+ * Various markers are treated as functions as their visual display depends on another function.
+ * 
+ * @since 1.0
+ */
+    public function get isDerived():Boolean { return _derived != null; }
+    
+/**
+ * <code>[get] domainValue</code> Access the current domain value of this function.
+ * 
+ * @return Number Some functions, such as markers, are defined only as specific x-coordinates.  Use this function to return the current domain value.
+ * 
+ * @since 1.0
+ */
+    public function get domainValue():Number { return 0; };
+    
+/**
+ * <code>[get] rangeValue</code> Access the current range value of this function.
+ * 
+ * @return Number Some functions, such as markers, are defined only as specific x-coordinates.  Use this function to return the current range value.
+ * 
+ * @since 1.0
+ */
+    public function get rangeValue():Number { return 0; }
+    
+/**
+ * <code>[get] markerValue</code> Access the current auxiliary value of a Marker function.
+ * 
+ * @return Number If this function is an interactive Marker, use this function to return values specific to the type of Marker at a particular x-cooridinate.
+ * 
+ * @since 1.0
+ */
+    public function get markerValue():Number { return 0; }
+    
+/**
+ * <code>[set] derived</code> Assign the derived function reference.
+ * 
+ * @param pFunction:IPlottable Reference to a function from which this function is derived.
+ * @see com.explorelearning.hilo.display.graphing.functions.IPlottable IPlottable
+ * 
+ * @return Nothing.
+ * 
+ * @since 1.0
+ */
+    public function set derived(pFunction:IPlottable):void
+    {
+      if( pFunction != null )
+      {
+        _derived = pFunction;
+      }
+    }
+    
+/**
+ * <code>[set] plotType</code> Assign how how the function is to be plotted.
+ * 
+ * @param pType:String <code>BaseFunction.LINEAR</code> if the function is to be plotted with line segments or <code>BaseFunction.QUAD</code> if the function is to be
+ * approximated and plotted with quadratic Beziers.  The function must not be self-plotting and continuous over the entire domain in order for this value to be
+ * used by the internal function grapher.
+ * 
+ * @return Nothing The default plot segment is line-to-line.
+ * 
+ * @since 1.0
+ */
+    public function set plotType(pType:String):void
+    {
+      var type:String = pType.toLowerCase();
+      if( type == LINEAR || type == QUAD )
+      {
+        _plotType = type;
+      }
+    }
+    
+/**
+ * <code>[set] lineMetrics</code> Assign the line metrics used to plot the function.
+ * 
+ * @param pMetrics:LineMetrics Reference to <code>LineMetrics</code> instance whose properties are used to graph the function.
+ * @see com.explorelearning.hilo.display.metrics.LineMetrics LineMetrics
+ * 
+ * @return Nothing.
+ * 
+ * @since 1.0
+ */
+    public function set metrics(pMetricsInfo:XMLList):void
+    {
+      if( _metrics != null )
+      {
+        _metrics = null;
+      }
+      
+      _metrics = new LineMetrics(pMetricsInfo);
+    }
+    
+/**
+ * <code>[set] params</code> Assign the basic parameters required to plot the function.
+ * 
+ * @param pParams:String Parameter string.  For example, a function plotting a straight line of the form mx + b would accept parameters m and b.
+ * 
+ * @return Nothing.
+ * 
+ * @since 1.0
+ */
+    public function set params(pParams:String):void
+    {
+      if( pParams == "" )
+      {
+        return;
+      }
+    }
+    
+/**
+ * <code>[set] derivedParams</code> Assign parameters relevant to derived functions.
+ * 
+ * @param pParams:String Parameter string.  If a function is derived from another function, this parameter string is used to set any relevant parameters that
+ * affect the derivation.
+ * 
+ * @return Nothing.
+ * 
+ * @since 1.0
+ */
+    public function set derivedParams(pParams:String):void
+    {
+      if( pParams == "" )
+      {
+        return;
+      }
+    }
+    
+    // this method has been deprecated and may be removed in a future release
+    public function set quadrants(pQuadrants:String):void
+    {
+      if( pQuadrants == QuadrantEnum.FIRST      ||
+          pQuadrants == QuadrantEnum.SECOND     ||
+          pQuadrants == QuadrantEnum.THIRD      ||
+          pQuadrants == QuadrantEnum.FOURTH     ||
+          pQuadrants == QuadrantEnum.TWO_RIGHT  ||
+          pQuadrants == QuadrantEnum.TWO_BOTTOM ||
+          pQuadrants == QuadrantEnum.TWO_LEFT   ||
+          pQuadrants == QuadrantEnum.TWO_TOP    ||
+          pQuadrants == QuadrantEnum.ALL )
+       {
+         _quadrants = pQuadrants;
+       }
+    }
+        
+/**
+ * <code>setData</code> Assign parameter data via XML.
+ * 
+ * @param pData:XML Reference to XML containing all function data.  Some functions such as step function contain too much data to represent items such as interval
+ * data in a parameter string.  It is more convienent to define this data in XML.  Override this method to accept such parameter data.
+ * 
+ * @return Nothing.
+ * 
+ * @since 1.0
+ */
+    public function setData(pData:XML):void {}
+	
+/**
+ * <code>addData</code> Assign parameter data dynamically
+ * 
+ * @param pData:Object Reference to Object containing data to be added on to the existing definition of this function.  This is used in functions such
+ * as piecewise linear that are updated with new points during the course of a simulation, for example.  Override this method to add the new data in a
+ * manner appropriate to the function.
+ * 
+ * @return Nothing.
+ * 
+ * @since 1.1
+ */
+    public function addData(pData:Object):void {}
+    
+/**
+ * <code>setGraphBounds</code> Assign current bounds of the visible graph display.
+ * 
+ * @param pLeft:Number Minimum x-coordinate of visible graph.
+ * @param pTop:Number Maximum y-coordinate of visible graph.
+ * @param pRight:Number Maximim x-coordinate of visible graph.
+ * @param pBottom:Number Minimum y-coordinate of visible graph.
+ * 
+ * @return Nothing.  It is not necessary to override this method.  It sets visible graph parameters used by self-plotting functions.
+ * 
+ * @since 1.0
+ */
+    public function setGraphBounds(pLeft:Number, pTop:Number, pRight:Number, pBottom:Number):void
+    {
+      var l:Number = isNaN(pLeft)   ? 0 : pLeft;
+      var t:Number = isNaN(pTop)    ? 0 : pTop;
+      var r:Number = isNaN(pRight)  ? 0 : pRight;
+      var b:Number = isNaN(pBottom) ? 0 : pBottom;
+      
+      _graphLeft   = Math.min( l, r );
+      _graphRight  = Math.max( l, r );
+      _graphTop    = Math.max( t, b );
+      _graphBottom = Math.min( t, b );
+    }
+    
+/**
+ * <code>plot</code> Plot the function.
+ * 
+ * @param pCanvas:Sprite Refernce to the container in which the plot is drawn.  Center of this container is always at graph origin.
+ * @param pxPerUnitX:Number Number of pixels per unit x value
+ * @param pxPerUnitY:Number Number of pixels per unit y value
+ * 
+ * @return Nothing.  Override this method for all self-plotting functions.
+ * 
+ * @since 1.0
+ */
+    public function plot(pCanvas:Sprite, pPxPerUnitX:Number, pPxPerUnitY:Number):void {}
+    
+/**
+ * <code>eval</code> Evaluate the function.
+ * 
+ * @param pX:Number x-coordinate for a cartesian function, angle for a polar function or parameter value for a parametric function.
+ * 
+ * @return Number.  Function value or <code>NaN</code> if the function is not defined at the specified domain value.
+ * 
+ * @since 1.0
+ */
+    public function eval(pX:Number):Number
+    {
+      return 0;
+    }
+    
+/**
+ * <code>eval</code> Evaluate the function's first derivative.
+ * 
+ * @param pX:Number x-coordinate for a cartesian function, angle for a polar function or parameter value for a parametric function.
+ * 
+ * @return Number.  Function's first derivative value or <code>NaN</code> if the first derivative is not defined at the specified domain value.
+ * 
+ * @since 1.0
+ */
+    public function derivative(pInput:Number):Number
+    {
+      return 0;
+    }
+    
+/**
+ * <code>formatFunction</code> Format the functional representation given a collection of parameter values.
+ * 
+ * @param pParams:Array Each element should be of type <code>String</code> and represent a single parameter value, which could be symbolic or numeric.
+ * @param pX:Number Reserved for future use
+ * @default NaN
+ * 
+ * @return String.  Representation of the function given the input parameters, in simplified form.  For example, a straight-line function would accept
+ * parameter values for 'm' and 'b'.  If m="a" and b="-1", the output should be ax - 1.  Use formatting according to Gizmo guidelines for formatting
+ * math displays such as minus and plus signs.  Superscripts and subscripts should be formatted with references to the relevant platform fonts such as 
+ * "<font face='superscriptEmbedded'>2</font>".
+ * 
+ * @since 1.0
+ */
+    public function formatFunction(pParams:Array, pX:Number=NaN):String
+    {
+      return "";
+    }
+    
+/**
+ * <code>formatDerivative</code> Format the functional representation of the first derivative given a collection of parameter values.
+ * 
+ * @param pParams:Array Each element should be of type <code>String</code> and represent a single parameter value, which could be symbolic or numeric.
+ * @param pX:Number Reserved for future use
+ * @default NaN
+ * 
+ * @return String.  Representation of the function's first derivative given the input parameters, in simplified form.  For example, a straight-line function would accept
+ * parameter values for 'm' and 'b'.  If m="a" and b="-1", the output should be -1.  Use formatting according to Gizmo guidelines for formatting
+ * math displays such as minus and plus signs.  Superscripts and subscripts should be formatted with references to the relevant platform fonts such as 
+ * "<font face='superscriptEmbedded'>2</font>".
+ * 
+ * @since 1.0
+ */
+    public function formatDerivative(pParams:Array, pX:Number=NaN):String
+    {
+      return "";
+    }
+    
+/**
+ * <code>getCartesianMinima</code> Access an array of x-coordinates of all minima of a cartesian function in an interval.
+ * 
+ * @param pA:Number Left endpoint of interval [a,b].
+ * @param pB:Number Right endponig of interval [a,b].
+ * 
+ * @return Array.  x-coordinate of each local minimum in [a,b].  It is only useful to override this method and actually compute stationary points if they are 
+ * easy to compute <b>and</b> the function is to be plotted with qudaratic Bezier approximations.
+ * 
+ * @since 1.0
+ */
+    public function getCartesianMinima(pA:Number, pB:Number):Array
+    {
+      // return information if easily computable
+      return [];
+    }
+    
+/**
+ * <code>getCartesianMaxima</code> Access an array of x-coordinates of all maxima of a cartesian function in an interval.
+ * 
+ * @param pA:Number Left endpoint of interval [a,b].
+ * @param pB:Number Right endponig of interval [a,b].
+ * 
+ * @return Array.  x-coordinate of each local maximum in [a,b].  It is only useful to override this method and actually compute stationary points if they are 
+ * easy to compute <b>and</b> the function is to be plotted with qudaratic Bezier approximations.
+ * 
+ * @since 1.0
+ */
+    public function getCartesianMaxima(pA:Number, pB:Number):Array
+    {
+      // return information if easily computable
+      return [];
+    }
+    
+/**
+ * <code>getX</code> Access the x-coordinate of a parametric function.
+ * 
+ * @param pParam:Number Parameter value, typically in [0,1]
+ * 
+ * @return Number.  x-coordinate at the specified parameter value.
+ * 
+ * @since 1.0
+ */
+    public function getX(pParam:Number):Number { return 0; }
+    
+/**
+ * <code>getY</code> Access the y-coordinate of a parametric function.
+ * 
+ * @param pParam:Number Parameter value, typically in [0,1]
+ * 
+ * @return Number.  y-coordinate at the specified parameter value.
+ * 
+ * @since 1.0
+ */    
+    public function getY(pParam:Number):Number { return 0; }
+    
+/**
+ * <code>getXPrime</code> Access dx/dt for a parametric function.
+ * 
+ * @param pParam:Number Parameter value, typically in [0,1]
+ * 
+ * @return Number.  If the parameter is t, this function returns dx/dt.
+ * 
+ * @since 1.0
+ */
+    public function getXPrime(pParam:Number):Number { return 0; }
+    
+/**
+ * <code>getYPrime</code> Access dy/dt for a parametric function.
+ * 
+ * @param pParam:Number Parameter value, typically in [0,1]
+ * 
+ * @return Number.  If the parameter is t, this function returns dy/dt.
+ * 
+ * @since 1.0
+ */
+    public function getYPrime(pParam:Number):Number { return 0; }
+    
+/**
+ * <code>getXPrime</code> Access dr/dt for a polar function.
+ * 
+ * @param pTheta:Number Angle value in radians
+ * 
+ * @return Number.  If the parameter is theta and the function is r(theta), this function returns dr/d(theta).
+ * 
+ * @since 1.0
+ */
+    public function getRPrime(pTheta:Number):Number { return 0; }
+    
+/**
+ * <code>computeBounds</code> Compute the internal bound values for this function.
+ * 
+ * @return Nothing.  Override and set the internal bound variables for the function provided they are easy to compute.
+ * 
+ * @since 1.0
+ */
+    protected function computeBounds():void
+    {
+      // empty
+    }
+    
+/**
+ * <code>destroy</code> Properly prepare this function for garbage collection.
+ * 
+ * @return Nothing.  Rarely, some self-plotting functions add assets to the parent <code>Sprite</code>.  Override this method to dispose of such assets.  It is
+ * called by the internal function grapher.
+ * 
+ * @since 1.0
+ */
+    public function destroy():void
+    {
+      // empty
+    }
+	
+/**
+ * <code>reset</code> Reset or clear out the data used to describe this function
+ * 
+ * @return Nothing. This method is typically used in functions that are graphed during a dynamic simulation.  After resetting a function, the graph of that
+ * function is blank.
+ * 
+ * @since 1.1
+ */
+    public function reset():void
+    {
+      // empty
+    }
+  }
+}

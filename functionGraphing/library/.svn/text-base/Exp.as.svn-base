@@ -1,0 +1,227 @@
+/**
+* <p><code>Exp</code> is a helper class for plotting exponential functions of the form</p>
+* 
+* <p>a*e^(bx) + c</p>
+*
+* <p>This function takes parameters <code>a</code>, <code>b</code>, and <code>c</code>, with <code>a = 1</code>, <code>b = 1</code>, and <code>c = 0</code> as
+* defaults.</p>
+*
+* @author Jim Armstrong
+* @version 1.0
+*
+* @keyword function exponential
+* 
+*/
+
+package com.explorelearning.hilo.display.graphing.functions.library
+{
+	 import com.explorelearning.hilo.display.graphing.functions.FunctionTypeEnum;
+	 import com.explorelearning.hilo.display.graphing.functions.QuadrantEnum;
+	 
+  import flash.utils.getDefinitionByName;
+  import flash.utils.getQualifiedClassName;
+	 
+/**
+ * <code>Exp</code> Construct a new <code>Exp</code> instance.
+ * 
+ * @return Nothing.
+ * 
+ * @since 1.0
+ */
+	 public class Exp extends BaseFunction
+	 { 
+	   // parameters
+	   protected var _a:Number;
+	   protected var _b:Number;
+	   protected var _c:Number;
+	   
+	   public function Exp():void
+	   {
+	     super();
+	     
+	     _type = FunctionTypeEnum.EXPONENTIAL;
+	     
+	     _a = 1;
+	     _b = 1;
+	     _c = 0;
+	   }
+    
+/**
+ * <code>[set] params</code> Assign the basic parameters required to plot the <code>Exp</code> function.
+ * 
+ * @param pParams:String Parameter string.  This function takes parameters <code>a</code>, <code>b</code>, and <code>c</code>, with <code>a = 1</code>, <code>b = 1</code>, and <code>c = 0</code> as
+ * defaults.
+ * 
+ * @return Nothing.
+ * 
+ * @since 1.0
+ */
+    override public function set params(pParams:String):void
+    {
+      if( pParams == "" )
+      {
+        return;
+      }
+      
+      var param:Array = pParams.split(",");
+      for( var i:uint=0; i<param.length; ++i )
+      {
+        var myParams:Array = param[i].split(":");
+        var name:String    = myParams[0].toLowerCase();
+        var num:Number     = myParams[1];
+        
+        switch( name)
+        {
+          case "a":
+            _a = isNaN(num) ? _a : num;
+          break;
+          
+          case "b":
+            _b = isNaN(num) ? _b : num;
+          break;
+          
+          case "c":
+            _c = isNaN(num) ? _c : num;
+          break;
+        }
+      }
+    }
+    
+/**
+ * <code>toString</code> Return a generic representation of the <code>Exp</code> function.
+ * 
+ * @return String "a.e^(bx) + c", where "." is the platform multiply symbol and "e^" represents e raised to the power of.  Proper display of superscripts 
+ * requires the superscriptEmbedded font.
+ * 
+ * @since 1.0
+ */
+    override public function toString():String {return "a" + MULTIPLY + exp("bx") + " + c"; }
+    
+    private function exp(pArg:String):String
+    {
+      return "e<font size='+" + SUPERSCRIPT_INCREASE + "' face='SuperscriptEmbedded'>"+pArg+"</font>";
+    }
+    
+/**
+ * <code>eval</code> Evaluate the <code>Exp</code> function at a given x-coordinate.
+ * 
+ * @param pX:Number x-coordinate.
+ * 
+ * @return Number Value of <code>Exp</code> function at the supplied x-coordinate based on current parameter settings.
+ * 
+ * @since 1.0
+ */
+    override public function eval(pX:Number):Number
+    {   
+      return _a*Math.exp(_b*pX) + _c;
+    }
+    
+/**
+ * <code>derivative</code> Evaluate the <code>Exp</code> function's first derivative at a given x-coordinate.
+ * 
+ * @param pX:Number x-coordinate.
+ * 
+ * @return Number Value of <code>Exp</code> first derivative at the supplied x-coordinate based on current parameter settings.
+ * 
+ * @since 1.0
+ */
+    override public function derivative(pX:Number):Number
+    {
+      return _a*_b*Math.exp(pX);
+    }
+    
+/**
+ * <code>formatFunction</code> Format the symbolic form of the <code>Exp</code> function given an array of parameters.
+ *
+ * @param pParams:Array Contains the a, b, and c parameters (as Strings).
+ * 
+ * @return String Formatted version of the function in simplified form.
+ * 
+ */ 
+    override public function formatFunction(pParams:Array, pX:Number=NaN):String
+    {
+      if( pParams.length == 0 )
+      {
+        return "0";
+      }
+      
+      var a:String = pParams[0];
+      var b:String = pParams.length == 1 ? "0" : pParams[1];
+      var c:String = pParams.length == 2 ? "0" : pParams[2];
+      
+      if( b == "" || b == " " || b == "0" )
+      {
+        return twoParam(a, "", c);
+      }
+      else if( b == "1" )
+      {
+        return twoParam(a, exp("x"), c);
+      }
+      else if( b == "-1" )
+      {
+        return twoParam(a, exp(MINUS+"x"), c);
+      }
+      else if( b.charAt(0) == "-" )
+      {
+        return twoParam(a, exp(MINUS+b.substring(1,b.length)+"x"), c);
+      }
+      else
+      {
+        return twoParam(a, exp(b+"x"), c);
+      }
+    }
+    
+    private function twoParam(pA:String, pB:String, pC:String):String
+    {
+      if( pA == "" || pA == " " || pA == "0" )
+      {
+        return oneParam("", pC);
+      }
+      else if( pA == "1" )
+      {
+        return oneParam(pB, pC);
+      }
+      else if( pA == "-1" )
+      {
+        return oneParam(MINUS+pB, pC);
+      }
+      else if( pA.charAt(0) == "-" )
+      {
+        return oneParam(MINUS+pA.substring(1,pA.length)+MULTIPLY+pB, pC);
+      }
+      else
+      {
+        return oneParam(pA+MULTIPLY+pB, pC);
+      }
+    }
+    
+    private function oneParam(pA:String, pC:String):String
+    {
+      if( pC == "" || pC == " " || pC == "0" )
+      {
+        return pA == "" ? "0" : pA;
+      }
+      else if( pC.charAt(0) == "-" )
+      {
+        return pA == "" ? MINUS + pC.substring(1,pC.length) : pA + " " + MINUS + " " + pC.substring(1,pC.length);
+      }
+      else
+      {
+        return pA == "" ? pC : pA + " " + PLUS + " " + pC;
+      }
+    }
+    
+/**
+ * <code>formatDerivative</code> Format the symbolic form of the <code>Exp</code> function first derivative given an array of parameters.
+ *
+ * @param pParams:Array Contains the a, b, and c parameters (as Strings).
+ * 
+ * @return String Formatted version of the first derivative in simplified form.
+ * 
+ */
+    override public function formatDerivative(pParams:Array, pX:Number=NaN):String
+    {
+      return formatFunction(pParams);
+    }
+	 }
+}

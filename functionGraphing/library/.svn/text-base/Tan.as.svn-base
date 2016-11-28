@@ -1,0 +1,212 @@
+/**
+ * <p><code>Tan</code> is a helper class for plotting tangent functions of the form</p>
+ * 
+ * <p>a*tan(bx) + c</p>
+ *
+ * <p>This function takes parameters <code>a</code>, <code>b</code>, and <code>c</code>, with <code>a = 1</code>, <code>b = 1</code>, and <code>c = 0</code> as
+ * defaults.</p>
+ *
+ * @author Jim Armstrong
+ * @version 1.0
+ *
+ * @keyword function sine cosine
+ * 
+ */
+
+package com.explorelearning.hilo.display.graphing.functions.library
+{
+	 import com.explorelearning.hilo.display.graphing.functions.FunctionTypeEnum;
+	 import com.explorelearning.hilo.display.graphing.functions.QuadrantEnum;
+	 
+	 import flash.display.Graphics;
+	 import flash.display.Sprite;
+  import flash.utils.getDefinitionByName;
+  import flash.utils.getQualifiedClassName;
+	 
+	 public class Tan extends BaseFunction
+	 { 
+	   private static const PI_2:Number = Math.PI/2;
+	   
+	   // parameters
+	   protected var _a:Number;
+	   protected var _b:Number;
+	   protected var _c:Number;
+	   
+/**
+ * <code>Tan</code> Construct a new <code>Tan</code> function instance.
+ *
+ * @return Nothing
+ * 
+ * @since 1.0
+ */
+	   public function Tan():void
+	   {
+	     super();
+	     
+	     _type     = FunctionTypeEnum.TRANSCENDENTAL;
+	     _selfPlot = true;
+	     
+	     _a = 1;
+	     _b = 1;
+	     _c = 0;
+	   }
+    
+/**
+ * <code>[set] params</code> Assign the parameters required to plot the <code>Tan</code> function.
+ * 
+ * @param pParams:String Parameter string.  This function takes parameters <code>a</code>, <code>b</code>, and <code>c</code>, with <code>a = 1</code>, 
+ * <code>b = 1</code>, and <code>c = 0</code> as defaults.
+ * 
+ * @return Nothing.
+ * 
+ * @since 1.0
+ */
+    override public function set params(pParams:String):void
+    {
+      if( pParams == "" )
+      {
+        return;
+      }
+      
+      var param:Array = pParams.split(",");
+      for( var i:uint=0; i<param.length; ++i )
+      {
+        var myParams:Array = param[i].split(":");
+        var name:String    = myParams[0].toLowerCase();
+        var num:Number     = myParams[1];
+        
+        switch( name)
+        {
+          case "a":
+            _a = isNaN(num) ? _a : num;
+          break;
+          
+          case "b":
+            _b = isNaN(num) ? _b : num;
+          break;
+          
+          case "c":
+            _c = isNaN(num) ? _c : num;
+          break;
+        }
+      }
+    }
+    
+/**
+ *
+ * @inheritDoc
+ */
+    override public function plot(pCanvas:Sprite, pPxPerUnitX:Number, pPxPerUnitY:Number):void
+    {
+      if( pCanvas == null )
+      {
+        return;
+      }
+     
+	     var g:Graphics = pCanvas.graphics;
+	     g.clear();
+	     
+	     if( _metrics == null )
+	     {
+	       g.lineStyle(1,0x000000);
+	     }
+	     else
+	     {
+	       g.lineStyle(_metrics.thickness, _metrics.color, _metrics.alpha);
+	     }
+	     
+	     // ah, life would be easy if it were not for those silly vertical asymptotes
+	     // get nearest (odd) multiple of pi/2 to left edge of graph
+	     var mult:Number = Math.round(_graphLeft/PI_2);
+	     mult            = mult == 0 ? -1 : mult;
+	     var dir:Number  = mult > 0 ? 1 : -1;
+      mult            = mult % 2 == 0 ? mult+dir : mult;
+      
+      // this is where we start for a single cycle
+      var left:Number = mult*PI_2;
+      
+      // graph cycles as long as the left-most coordinate is within the graph boundary
+      while( left < _graphRight )
+      {
+        var myX:Number   = left+0.08;             // small perturbation to get it away from the singularity
+        var right:Number = left + Math.PI - 0.08; // right edge of the current cycle
+        var curY:Number  = _graphBottom;          // clip - avoid numerical problems
+        
+        g.moveTo(myX*pPxPerUnitX, -curY*pPxPerUnitY);
+        
+        while( myX < right )
+        {
+          myX += 0.1;
+          curY = eval(myX);
+          
+          g.lineTo(myX*pPxPerUnitX, -curY*pPxPerUnitY);
+        }
+        
+        // finish up final point - clip at graph top
+        curY = _graphTop;
+        g.lineTo(myX*pPxPerUnitX, -curY*pPxPerUnitY);
+        
+        // next cycle
+        left += Math.PI;
+      }
+    } 
+    
+/**
+ * <code>eval</code> Evaluate the <code>Tan</code> function.
+ * 
+ * @param pX:Number x-coordinate (in radians).
+ * 
+ * @return Number.  <code>Tan</code> Function value or <code>NaN</code> if x is an integer mutiple of PI/2.
+ * 
+ * @since 1.0
+ */
+    override public function eval(pX:Number):Number
+    {   
+      return _a*Math.tan(_b*pX) + _c;
+    }
+    
+/**
+ * <code>eval</code> Evaluate the <code>Tan</code> function first derivative.
+ * 
+ * @param pX:Number x-coordinate (in radians).
+ * 
+ * @return Number.  Value of first derivative of <code>Tan</code> Function or <code>NaN</code> if x is an integer mutiple of PI/2.
+ * 
+ * @since 1.0
+ */
+    override public function derivative(pX:Number):Number
+    {
+      // derivative = sec^2(x) = 1/cos^2(x)
+      
+      if( isNaN(pX) )
+      {
+        return NaN;
+      }
+      
+      // if a multiple of pi/2, then game over, otherwise range-reduce to (-pi/2, pi/2)
+      var mult:Number = pX/PI_2;
+      if( Math.abs( Math.abs(mult)-1.0 ) <= 0.000000001 )
+      {
+        return NaN;
+      }
+      
+      var x:Number = pX - Math.floor(mult)*PI_2;
+      var s:Number = 1/Math.cos(x);
+      
+      return s*s;
+    }
+    
+/**
+ * <code>computeBounds</code> Compute the internal bound values for the <code>Tan</code> function.
+ * 
+ * @return Nothing.  Sets internal bound variables used by the function grapher.
+ * 
+ * @since 1.0
+ */
+    override protected function computeBounds():void
+    {
+      _top    = _c + _a;
+	     _bottom = _c - _a;
+    }
+	 }
+}

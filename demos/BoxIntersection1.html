@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <link rel="shortcut icon" href="img/favicon.ico">
+  <link href="css/bootstrap.min.css" rel="stylesheet" type="text/css">
+  <link href="css/demo.css" rel="stylesheet" type="text/css">
+  <title>The Algorithmist :: Bounding-Box Intersection</title>
+</head>
+
+<body>
+
+  <nav class="navbar-wrapper navbar-inverse navbar-fixed-top" role="navigation">
+    <div class="container">
+      <div class="navbar-header">
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-ex1-collapse">
+          <span class="sr-only">Toggle navigation</span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+        </button>
+        <p class="navbar-brand">Bounding-Box Intersection</p>
+      </div>
+          
+      <div class="collapse navbar-collapse">
+        <ul class="nav navbar-nav">
+          <li><a href="http://www.algorithmist.net" target="_blank"><span class="glyphicon glyphicon-star"></span>The Algorithmist</a></li>
+        </ul>
+      </div><!-- /.navbar-collapse -->
+    </div>
+  </nav>
+ 
+  <div class="container-fluid">
+    <div class="jumbotron">
+    <p align="center"><span class="shadowed">The Algorithmist::Bounding-Box Intersection Demo</span></p>
+    </div>
+  </div>
+  
+   <div class="container">
+     <div class="row">
+       <div class="col-md-12">
+         <p class="lightTxt">Bounding-box intersection is a frequent operation in games and spatially-oriented interactive applications.  Press and drag in the graph area to draw two boxes - the intersection test is automatic.  This is an example of a y-up coordinate orientation.</p>
+       </div>
+     </div>
+     
+     <div class="row">
+       <div class="col-md-12" >
+         <button class="btn btn-sm btn-success" href="#" type="button" id="reset">Reset</button>&nbsp;
+       </div>
+     </div>
+      
+     <div class="row>">  
+       <div class="col-md-12 padded" id="canvasWrapper" align="center" >
+         <canvas width="500" height="300" id="stageCanvas" style="border:1px solid #ebebeb;"></canvas>
+       </div>
+     </div>
+     
+     <div class="row">
+       <div class="col-md-12" >
+         <p id="instruct" class="lightTxt" align="center">Click and drag twice in the graph area to define two boxes.</p>
+       </div>
+     </div>
+   </div>
+   
+   <footer>
+     <p class="lightTxt">&copy; 2013 The Algorithmist.  All rights reserved.</p>
+   </footer>
+   
+  </div>
+   
+   <script type="text/javascript" src="js/require-setup.js"></script>
+   <script data-main="js/BoxIntersectionDemo1" src="js/require.js"></script>
+   
+</body>
+</html>

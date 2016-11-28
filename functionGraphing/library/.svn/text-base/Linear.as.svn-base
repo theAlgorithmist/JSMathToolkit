@@ -1,0 +1,304 @@
+/**
+ * <p><code>Linear</code> is a helper class for plotting straight line functions, y = mx + b.  This function accepts parameter <code>m</code> for
+ * the slope and <code>b</code> for the y-intercept.  Both values default to zero.  Setting the input parameters does not force the line to be redrawn, 
+ * although this may change in the future.</p>
+ *
+ * @author Jim Armstrong
+ * @version 1.0
+ *
+ * @keyword function line
+ * 
+ */
+
+package com.explorelearning.hilo.display.graphing.functions.library
+{
+  import com.explorelearning.hilo.display.graphing.functions.FunctionTypeEnum;
+  import com.explorelearning.hilo.display.graphing.functions.QuadrantEnum;
+	 
+  import flash.display.Graphics;
+  import flash.display.Sprite;
+	 
+  import flash.utils.getDefinitionByName;
+  import flash.utils.getQualifiedClassName;
+	 
+  public class Linear extends BaseFunction
+  { 
+    // function parameters
+    protected var _m:Number;
+    protected var _b:Number;
+	   
+/**
+ * <code>Linear</code> Construct a new Linear instance.
+ * 
+ * @return Nothing
+ * 
+ * @since 1.0
+ */
+    public function Linear():void
+    {
+      super();
+	     
+      _type = FunctionTypeEnum.LINEAR;
+	     
+      _m        = 0;
+      _b        = 0;
+      _selfPlot = true;  // function is self-plotting as only a single line segment is involved
+    }
+
+/**
+ * <code>toString</code> Return a generic representation of the <code>Linear</code> function.
+ * 
+ * @return String "mx + b".
+ * 
+ * @since 1.0
+ */
+    override public function toString():String { return "mx + b"; }
+      
+/**
+ * <code>[set] params</code> Assign basic parameters for a <code>Linear</code> function.
+ * 
+ * @param pParams:String This function accepts parameter <code>m</code> for the slope and <code>b</code> for the y-intercept.  To represent a vertical line, 
+ * pass in <code>NaN</code> for the slope in which case the line is represented by the function <code>x = b</code>.
+ * 
+ * @return Nothing
+ * 
+ * @since 1.0
+ */
+    override public function set params(pParams:String):void
+    {
+      if( pParams == "" )
+      {
+        return;
+      }
+      
+      var param:Array = pParams.split(",");
+      for( var i:uint=0; i<param.length; ++i )
+      {
+        var myParams:Array = param[i].split(":");
+        var name:String    = myParams[0].toLowerCase();
+        if( name == "m" )
+        {
+          _m = Number(myParams[1]);
+        }
+        else if( name == "b" )
+        {
+          var intercept:Number = Number(myParams[1]);
+          _b                   = !isNaN(intercept) ? intercept : _b;
+        }
+      }
+    }
+    
+/**
+ * @inheritDoc
+ */
+    override public function plot(pCanvas:Sprite, pPxPerUnitX:Number, pPxPerUnitY:Number):void
+    {
+      if( pCanvas == null )
+      {
+        return;
+      }
+     
+      var g:Graphics = pCanvas.graphics;
+      g.clear();
+	     
+      if( _metrics == null )
+      {
+        g.lineStyle(1,0x000000);
+      }
+      else
+      {
+        g.lineStyle(_metrics.thickness, _metrics.color, _metrics.alpha);
+      }
+	     
+      // back-door to handle vertical lines
+      if( isNaN(_m) )
+      {
+        if( _b < _graphLeft || _b > _graphRight )
+        {
+          return;
+        }
+        else
+        {
+          g.moveTo(_b*pPxPerUnitX, -_graphTop*pPxPerUnitY  );
+          g.lineTo(_b*pPxPerUnitX, -_graphBottom*pPxPerUnitY);
+        }
+      }
+      else
+      {
+        // for most general-purpose usage, clip to allowable graph space
+        if( Math.abs(_m) < 0.00000001 )
+        {
+          if( _b > _graphTop || _b < _graphBottom )
+          {
+            return;
+          }
+          else
+          {
+            g.moveTo(_graphLeft*pPxPerUnitX , -_b*pPxPerUnitY);
+            g.lineTo(_graphRight*pPxPerUnitX, -_b*pPxPerUnitY);
+          }
+        }
+        else
+        {
+          var left:Number           = _graphLeft;
+          var right:Number          = _graphRight;
+          var leftIntercept:Number  = _m*_graphLeft  + _b;
+          var rightIntercept:Number = _m*_graphRight + _b;
+	       
+          if( leftIntercept > _graphTop )
+          {
+            left          = (_graphTop - _b)/_m;
+            leftIntercept = _graphTop;
+          }
+          else if( leftIntercept < _graphBottom )
+          {
+            left          = (_graphBottom - _b)/_m;
+            leftIntercept = _graphBottom;
+          }
+	         
+          if( rightIntercept > _graphTop )
+          {
+            right          = (_graphTop - _b)/_m;
+            rightIntercept = _graphTop;
+          }
+          else if( rightIntercept < _graphBottom )
+          {
+            right          = (_graphBottom - _b)/_m;
+            rightIntercept = _graphBottom;
+          }
+	         
+          if( left < _graphLeft || right > _graphRight )
+          {
+            return;
+          }
+	         
+          g.moveTo(left*pPxPerUnitX , -leftIntercept*pPxPerUnitY);
+          g.lineTo(right*pPxPerUnitX, -rightIntercept*pPxPerUnitY);
+        }
+      }
+    }
+    
+/**
+ * <code>eval</code> Evaluate the <code>Linear</code> function.
+ * 
+ * @param pX:Number x-coordinate .
+ * 
+ * @return Number.  Function value or <code>NaN</code> if the line is vertical.
+ * 
+ * @since 1.0
+ */
+    override public function eval(pX:Number):Number
+    {   
+      return _m*pX + _b;
+    }
+    
+/**
+ * <code>derivative</code> Evaluate the <code>Linear</code> function's first derivative.
+ * 
+ * @param pX:Number x-coordinate .
+ * 
+ * @return Number.  Value of slope or <code>Number.POSITIVE_INFINITY</code> if the line is vertical.
+ * 
+ * @since 1.0
+ */
+    override public function derivative(pX:Number):Number
+    {
+      return isNaN(_m) ? Number.POSITIVE_INFINITY : _m;
+    }
+    
+/**
+ * <code>formatFunction</code> Format the <code>Linear</code> functional representation given a collection of parameter values.
+ * 
+ * @param pParams:Array String value of parameters m and b.
+ * @param pX:Number Reserved for future use
+ * @default NaN
+ * 
+ * @return String.  Representation of the <code>Linear</code> function given the input parameters, in simplified form. If m="a" and b="-1", the output is ax - 1.  
+ * 
+ * @since 1.0
+ */
+    override public function formatFunction(pParams:Array, pX:Number=NaN):String
+    {
+      if( pParams.length == 0 )
+      {
+        return "0";
+      }
+      
+      var a:String = pParams[0];
+      var b:String = pParams.length == 1 ? "0" : pParams[1];
+      
+      if( a == "" || a == " " || a == "0" )
+      {
+        return oneParam("", b);
+      }
+      else if( a == "1" )
+      {
+        return oneParam("x", b);
+      }
+      else if( b == "-1" )
+      {
+        return oneParam(MINUS+"x", b);
+      }
+      else if( a.charAt(0) == "-" )
+      {
+        return oneParam(MINUS+a.substring(1,a.length)+"x", b);
+      }
+      else
+      {
+        return oneParam(a+"x", b);
+      }
+    }
+    
+    private function oneParam(pA:String, pB:String):String
+    {
+      if( pB == "" || pB == " " || pB == "0" )
+      {
+        return pA == "" ? "0" : pA;
+      }
+      else if( pB.charAt(0) == "-" )
+      {
+        return pA == "" ? MINUS + pB.substring(1,pB.length) : pA + " " + MINUS + " " + pB.substring(1,pB.length);
+      }
+      else
+      {
+        return pA == "" ? pB : pA + " " + PLUS + " " + pB;
+      }
+    }
+    
+/**
+ * <code>formatFunction</code> Format the <code>Linear</code> functional representation given a collection of parameter values.
+ * 
+ * @param pParams:Array String value of the parameter m (only one parameter is necessary).
+ * @param pX:Number Reserved for future use
+ * @default NaN
+ * 
+ * @return String.  Slope formatted with leading minus sign if necessary.  
+ * 
+ * @since 1.0
+ */
+    override public function formatDerivative(pParams:Array, pX:Number=NaN):String
+    {
+      if( pParams.length == 0 )
+      {
+        return "0";
+      }
+      
+      var a:String = pParams[0];
+      
+      if( a == "" || a == " " || a == "0" )
+      {
+        return "0";
+      }
+      
+      if( a.charAt(0) == "-" )
+      {
+        return MINUS + a.substring(1,a.length);
+      }
+      else
+      {
+        return a;
+      }
+      
+    }
+	 }
+}

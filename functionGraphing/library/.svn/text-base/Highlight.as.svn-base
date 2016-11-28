@@ -1,0 +1,288 @@
+/**
+ * <p><code>Highlight</code> renders highlighted regions above or below a function.  Although implemented as a <code>derived</code> function, <coe>Highlight</code> and its
+ * derivative always evaluates to zero.</p>
+ * 
+ * <p>This function accepts the following parameters<br><br>
+ * <b>direction</b> - 'above' to highlight the region above a function and 'below' to highlight the region below a function.<br><br>
+ * <b>color</b> - fill color for the highlighted region.<br>
+ * <b>alpha</b> - alpha value applied to the fill.</p>
+ *
+ * <p>If no parameters are provided, the <code>Highlight</code> higlights the region below the specified function with a completely opaque, white fill.  There
+ * are no derived parameters.  Base parameters may be updated dynamically in an application and any such update causes a complete redraw of the current highlight.</p>
+ *
+ * <p>The current <code>Highlight</code> implementation requires a continuous function in the current graph window for proper display.  The highlight is rendered 
+ * across the entire boundary from left edge of graph to right edge of graph.  For some functions and display windows, it may appear that the function is not
+ * continuous, but this is due to display clipping.</p>
+ *
+ * @author Jim Armstrong
+ * @version 1.0
+ *
+ * @keyword function highlight
+ *  
+ */
+
+package com.explorelearning.hilo.display.graphing.functions.library
+{
+  import flash.display.Graphics;
+  import flash.display.Sprite;
+  
+  import com.explorelearning.hilo.display.graphing.functions.FunctionToBezier;
+  import com.explorelearning.geom.utils.QuadBezierData;
+  
+	 public class Highlight extends BaseFunction
+	 {
+	   public static const ABOVE:String     = "above";
+	   public static const BELOW:String     = "below"; 
+    public static const DIRECTION:String = "direction";
+    public static const COLOR:String     = "color";
+    public static const ALPHA:String     = "alpha";
+    
+	   // core
+	   protected var _color:uint;         // color applied to highlighted region
+	   protected var _alpha:Number;       // alpha value applied to highlighted region fill
+	   protected var _above:Boolean;      // true if highlighting region above another function (defaults to false)
+	   
+	   // cache reference to parent container
+	   protected var _myParent:Sprite;
+	   
+	   // cache unit->px
+	   protected var _pxPerUnitX:Number;
+	   protected var _pxPerUnitY:Number;
+	   
+	   // function->Bezier conversion
+	   protected var _toBezier:FunctionToBezier;
+	   
+/**
+ * <code>Highlight</code> Create a new Highlight instance.
+ * 
+ * @return Nothing.
+ * 
+ * @since 1.0
+ */
+	   public function Highlight():void
+	   {
+	     super();
+	     
+	     _color = 0xffffff;
+	     _alpha = 1;
+	     _above = false;
+	       
+	     _pxPerUnitX = 0;
+	     _pxPerUnitY = 0;
+	     
+	     _myParent = null;
+	     _toBezier = new FunctionToBezier();
+	   }
+    
+/**
+ * <code>[set] params</code> Assign the basic parameters required to plot the <code>Highlight</code>.
+ * 
+ * @param pParams:String Parameter string. This function accepts the following parameters<br><br>
+ * <b>direction</b> - 'above' to highlight the region above a function and 'below' to highlight the region below a function.<br><br>
+ * <b>color</b> - fill color for the highlighted region.<br>
+ * <b>alpha</b> - alpha value applied to the fill.
+ * 
+ * @return Nothing.
+ * 
+ * @since 1.0
+ */
+    override public function set params(pParams:String):void
+    {
+      if( pParams == "" )
+      {
+        return;
+      }
+      
+      var allParams:Array = pParams.split(",");
+      for( var i:uint=0; i<allParams.length; ++i )
+      {
+        var p:Array = allParams[i].split(":");
+        switch( p[0] )
+        {
+          case DIRECTION:
+            _above = p[1].toLowerCase() == ABOVE;
+          break;
+         
+	         case COLOR:
+	           var myColor:Number = Number(p[1]);
+	           _color = isNaN(myColor) ? _color : uint(myColor);
+	         break;
+	        
+          case ALPHA:
+            var myAlpha:Number = Number(p[1]);
+            _alpha             = isNaN(myAlpha) ? _alpha : Math.abs(myAlpha);
+            _alpha             = Math.min(1,myAlpha);
+          break;
+        }
+      }
+    }
+    
+/**
+ * @inheritDoc
+ */
+    override public function plot(pCanvas:Sprite, pPxPerUnitX:Number, pPxPerUnitY:Number):void
+    {
+      if( _derived == null || pCanvas == null )
+      {
+        return;
+      }
+     
+      if( pCanvas != null )
+      {
+        _myParent = pCanvas;
+      }
+      
+      _pxPerUnitX = pPxPerUnitX;
+	     _pxPerUnitY = pPxPerUnitY;
+	     
+      redraw();
+    }
+    
+    protected function redraw():void
+    {
+      var g:Graphics = _myParent.graphics;
+      g.clear();
+      
+      // compensate if the function is not defined over the current graph range
+      if( _derived.left >= _graphRight || _derived.right <= _graphLeft )
+      {
+        return;
+      }
+      
+      if( _derived.left > _graphLeft || _derived.right < _graphRight )
+      {
+        redrawPartial();
+        return;
+      }
+      
+      g.beginFill(_color, _alpha);
+      
+      // approximate the function across the current graph domain by a sequence of quad. Beziers
+      var quads:Array = _toBezier.convert(_derived, _graphLeft, _graphRight );
+      
+      // graph the quad. sequence
+      var q:QuadBezierData = quads[0];
+      var yAtLeft:Number   = q.y0;
+      
+      g.moveTo(q.x0*_pxPerUnitX, -q.y0*_pxPerUnitY);
+      
+      for( var i:uint=0; i<quads.length; ++i )
+      {
+        q = quads[i];
+        g.curveTo(q.cx*_pxPerUnitX, -q.cy*_pxPerUnitY, q.x1*_pxPerUnitX, -q.y1*_pxPerUnitY);
+      }
+      
+      // fill in the remainder of the outline depending on above or below the function
+      if( _above )
+      {
+        var yAtRight:Number = _derived.eval(_graphRight);
+        var topRight:Number = Math.max( yAtRight, _graphTop );
+        if( topRight != yAtRight )
+        {
+          g.lineTo(_graphRight*_pxPerUnitX, -topRight*_pxPerUnitY);
+        }
+        
+        var topLeft:Number = Math.max( yAtLeft, _graphTop )
+        if( yAtLeft != topLeft )
+        {
+          g.lineTo(_graphLeft*_pxPerUnitX, -topLeft*_pxPerUnitY);
+        }
+        
+        g.lineTo(_graphLeft*_pxPerUnitX, -yAtLeft*_pxPerUnitY);
+      }
+      else
+      {
+        yAtRight               = _derived.eval(_graphRight);
+        var bottomRight:Number = Math.min( yAtRight, _graphBottom );
+        if( bottomRight != yAtRight )
+        {
+          g.lineTo(_graphRight*_pxPerUnitX, -bottomRight*_pxPerUnitY);  // if the function bottoms out above the top of the graph ...
+        }
+        
+        var bottomLeft:Number = Math.min( yAtLeft, _graphBottom )
+        if( yAtLeft != bottomLeft )
+        {
+          g.lineTo(_graphLeft*_pxPerUnitX, -bottomLeft*_pxPerUnitY);
+        }
+        
+        g.lineTo(_graphLeft*_pxPerUnitX, -yAtLeft*_pxPerUnitY);
+      }
+    }
+    
+    // partial redraw over only part of the visible graph area - split into a separate method to make things easier to follow and allow 
+    // a path for more complex CRs that may be forthcoming ... we all know how that works :)
+    protected function redrawPartial():void
+    { 
+      var g:Graphics = _myParent.graphics;
+      g.beginFill(_color, _alpha);
+     
+      var leftLimit:Number  = Math.max(_graphLeft, _derived.left );
+      var rightLimit:Number = Math.min(_graphRight, _derived.right );
+       
+      // approximate the function across the current graph domain by a sequence of quad. Beziers
+      var quads:Array = _toBezier.convert(_derived, leftLimit, rightLimit);
+      
+      // graph the quad. sequence
+      var q:QuadBezierData = quads[0];
+      var yAtLeft:Number   = q.y0;
+      
+      g.moveTo(q.x0*_pxPerUnitX, -q.y0*_pxPerUnitY);
+
+      for( var i:uint=0; i<quads.length; ++i )
+      {
+        q = quads[i];
+        
+        g.curveTo(q.cx*_pxPerUnitX, -q.cy*_pxPerUnitY, q.x1*_pxPerUnitX, -q.y1*_pxPerUnitY);
+      }
+      
+      // fill in the remainder of the outline depending on above or below the function
+      if( _above )
+      {
+        var yAtRight:Number = _derived.eval(rightLimit);
+        var topRight:Number = Math.max( yAtRight, _graphTop );
+        if( topRight != yAtRight )
+        {
+          g.lineTo(rightLimit*_pxPerUnitX, -topRight*_pxPerUnitY);
+        }
+        
+        var topLeft:Number = Math.max( yAtLeft, _graphTop )
+        if( yAtLeft != topLeft )
+        {
+          g.lineTo(leftLimit*_pxPerUnitX, -topLeft*_pxPerUnitY);
+        }
+        
+        g.lineTo(leftLimit*_pxPerUnitX, -yAtLeft*_pxPerUnitY);
+      }
+      else
+      {
+        yAtRight               = _derived.eval(rightLimit);
+        var bottomRight:Number = Math.min( yAtRight, _graphBottom );
+        if( bottomRight != yAtRight )
+        {
+          g.lineTo(rightLimit*_pxPerUnitX, -bottomRight*_pxPerUnitY);  // if the function bottoms out above the top of the graph ...
+        }
+        
+        var bottomLeft:Number = Math.min( yAtLeft, _graphBottom )
+        if( yAtLeft != bottomLeft )
+        {
+          g.lineTo(leftLimit*_pxPerUnitX, -bottomLeft*_pxPerUnitY);
+        }
+        
+        g.lineTo(leftLimit*_pxPerUnitX, -yAtLeft*_pxPerUnitY);
+      }
+    }
+    
+/**
+ * <code>destroy</code> Properly prepare a <code>Highlight</code> for garbage collection.
+ * 
+ * @return void.  Clears the graphic canvas.
+ * 
+ * @since 1.0
+ */    
+    override public function destroy():void
+    {
+      _myParent.graphics.clear();
+      _myParent = null;
+    }
+	 }
+}

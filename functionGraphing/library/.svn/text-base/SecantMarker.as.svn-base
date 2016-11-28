@@ -1,0 +1,494 @@
+/**
+* <p><code>SecantMarker</code> is a helper class for plotting an interactive marker that is constrained to the plot of another function.  In addition to a rollover
+* display commonly associated with <code>markers</code>, the <code>SecantMarker</code> class draws a secant line based on another function, an x-coordinate for
+* that function and a delta (h-value).</p>
+* 
+* <p><code>SecantMarker</code> supports the standard <code>Marker</code> parameters.  The derived parameters for this function are<br><br>
+* <b>x-coord</b>x-coordinate used to set marker location (holding the h-value constant).  The marker is plotted at x+h, not the x-coordinate value.  
+* This is used to move the marker and secant line independently of user interaction.<br>
+* <b>h</b> - delta value used to plot the secant line.  <br>
+* <b>show</b> - 'true' if the secant line is displayed, 'false' otherwise (always true by default).
+* <b>snap</b> - non-negative numerical amount that the tangent marker is snapped to on mouse release (defaults to zero).<br><br>
+* By default, the secant line extends to the graph boundaries.  The x-value from which the delta is applied is the <code>domain value</code> of the base function.<br></p>
+*
+* <p>On roll over, <code>SecantMarker</code> displays the current x- and y-coordinates of the visual marker (to the specified number of digits).</p>
+*
+* <p>Dispatches a <code>MarkerEvent (MARKER_CHANGED)</code> whenever the marker position is changed by user action, and <code>BaseFunction.ERROR Event</code> if
+* the marker can not be instantiated or the function/derivative is not defined at the specified domain coordinate.  All events bubble (as they are dispatched
+* on the parent container, not this Object, directly).  Use the <code>MarkerEvent marker()</code> method to access the reference to the <code>Marker</code>, then
+* use the <code>markerValue</code> accessor function to obtain the current value associated with the marker (which is currently the slope of the secant line).  
+* Use the <code>domainValue()</code> accessor to query the current delta (or h) value.</p>
+*
+* <p>For example, suppose the typical Gizmo ExploreViewController contains a public variable, <code>plot</code> that is a 
+* reference to a <code>FunctionPlot</code> instance, defined in XML.  Use the code,<br><br>
+* <code>  import com.explorelearning.hilo.display.graphing.functions.library.MarkerEvent;<br><br>
+* plot.addEventListener(Marker.MARKER_CHANGED, onMarkerChanged);<br><br>
+* private function onMarkerChanged(pEvent:MarkerEvent):void
+* {
+*		 var m:* = pEvent.marker;
+*		 if( m is SecantMarker )
+*		 {
+*   }
+* }</code><br><br>
+* to respond to the (bubbling) Marker.MARKER_CHANGED event and determine if it was a <code>SecantMarker</code> instance that dispatched the event.  Then,
+* use <code>m.domainValue</code> to access the current delta, or h-value associated with the marker and <code>m.markerValue</code> to access the slope of the secant line.</p>
+*
+* <p>Note that updating either the <code>x-coord</code> or <code>h</code> parameters causes the marker and secant line to be immediately re-drawn.  This provides a slightly more
+* efficient update than working with the updating function in <code>FunctionPlot</code> and is useful for applications where the <code>SecantMarker</code>
+* is tightly integrated with another UI element.  If only a single parameter changes, then only that parameter should be updated to avoid redundant redraws.</p>
+*
+*
+* @author Jim Armstrong
+* @version 1.0
+*
+* @see com.explorelearning.hilo.display.graphing.functions.BaseFunction BaseFunction
+* @see com.explorelearning.hilo.display.graphing.functions.Marker Marker
+* @see com.explorelearning.hilo.display.graphing.functions.library.MarkerEvent MarkerEvent
+* @keyword function secant
+* 
+*/
+
+package com.explorelearning.hilo.display.graphing.functions.library
+{
+	 import com.explorelearning.hilo.display.metrics.LineMetrics;
+	 import com.explorelearning.hilo.display.core.LineUtils;
+	 import com.explorelearning.hilo.display.standard.TextLabel;
+	 import com.explorelearning.hilo.cursors.CursorEnum;
+  import com.explorelearning.hilo.managers.CursorManager;
+  import com.explorelearning.hilo.utils.StringUtils;
+	 
+	 import flash.display.DisplayObjectContainer;
+	 import flash.display.Graphics;
+	 import flash.display.MovieClip;
+	 import flash.display.Shape;
+	 import flash.display.Sprite;
+ 
+	 import flash.events.Event;
+  import flash.utils.getDefinitionByName;
+  import flash.utils.getQualifiedClassName;
+  import flash.events.MouseEvent;
+  import flash.display.Stage;
+  import flash.geom.Point;
+
+	 public class SecantMarker extends Marker
+	 {
+	   protected var _h:Number;          // current h-value
+	   protected var _m:Number;          // slope of secant line
+	   protected var _origTarget:Number; // original target of 'hinge' or target point for secant before a move 
+	   protected var _show:Boolean;      // true if secant line is plotted or shown
+	   protected var _xCoord:Number;     // x-coordinate at which delta is targeted, i.e. secant marker is plotted at _xCoord + _h
+	   protected var _snap:Number;       // snap amount - snaps to nearest multiple of this number (in function units) after mouse is released
+	    
+	   public function SecantMarker():void
+	   {
+	     super();
+	     
+	     _h          = 1;
+	     _m          = 0;
+	     _origTarget = 0;
+	     _xCoord     = 0;
+	     _snap       = 0;
+	     _show       = true;
+	   }
+	   
+/**
+ * <code>[get] markerValue</code> Access the current auxiliary value of this <code>SecantMarker</code> function.
+ * 
+ * @return Number Current slope of the secant line.
+ * 
+ * @since 1.0
+ */
+	   override public function get markerValue():Number { return _m; }
+	   
+/**
+ * <code>[get] domainValue</code> Access the current domain value of this <code>SecantMarker</code>.
+ * 
+ * @return Number Current delta from marker x-coordinate or the h value.
+ * 
+ * @since 1.0
+ */
+	   override public function get domainValue():Number { return _h; }
+    
+/**
+ * <code>[set] derivedParams</code> Assign parameters relevant to the function from which this <code>SecantMarker</code> is derived.
+ * 
+ * @param pParams:String Parameter string.  The derived parameters for this function are<br><br>
+ * <b>x-coord</b>x-coordinate used to set marker location (holding the h-value constant).  The marker is plotted at x+h, not the x-coordinate value.  
+ * This is used to move the marker and secant line independently of user interaction.<br>
+ * <b>h</b> - delta value used to plot the secant line.  <br>
+ * <b>show</b> - 'true' if the secant line is displayed, 'false' otherwise (always true by default).
+ * <b>snap</b> - non-negative numerical amount that the tangent marker is snapped to on mouse release (defaults to zero).<br><br>
+ * By default, the secant line extends to the graph boundaries.  The x-value from which the delta is applied is the <code>domain value</code> of the base function.
+ * 
+ * @return Nothing.
+ * 
+ * @since 1.0
+ */
+    override public function set derivedParams(pParams:String):void
+    {
+      if( pParams == "" )
+      {
+        return;
+      }
+      
+      var params:Array = pParams.split(",");
+      for( var i:uint=0; i<params.length; ++i )
+      {
+        var p:Array = params[i].split(":");
+        switch( p[0].toLowerCase() )
+        {
+          case "x-coord":
+            var myX:Number = Number(p[1]);
+            _xCoord        = isNaN(myX) ? _xCoord : myX;
+            _curX          = _xCoord + _h;
+            
+            var myY:Number = _derived.eval(_curX);
+            if( !isNaN(myY) && _marker != null )
+            {
+              _marker.x = _curX*_pxPerUnitX;
+              _marker.y = -myY*_pxPerUnitY;
+            }
+            
+            if( _h != 0 )
+            {
+              drawSecant();
+            }
+          break;
+          
+          case "snap":
+            var snap:Number = Number(p[1]);
+            _snap           = isNaN(snap) || snap < 0 ? _snap : snap;
+          break;
+          
+          case "h":
+            var myH:Number = Number(p[1]);
+            _h             = isNaN(myH) ? _h : myH;
+            _curX          = _xCoord + _h;
+            
+            myY = _derived.eval(_curX);
+            if( !isNaN(myY) && _marker != null )
+            {
+              _marker.x = _curX*_pxPerUnitX;
+              _marker.y = -myY*_pxPerUnitY;
+            }
+            
+            if( _h != 0 )
+            {
+              drawSecant();
+            }
+          break;
+        
+          case "show":
+            _show = p[1].toLowerCase() == "true";
+            
+            drawSecant();
+          break;
+        }
+      }
+    }
+    
+/**
+ * @inheritDoc
+ */
+    override public function plot(pCanvas:Sprite, pPxPerUnitX:Number, pPxPerUnitY:Number):void
+    {
+      // plot the marker and the current secant line - afterwards, the secant line is replotted every time the marker is moved
+      
+      // initial coordinates should be properly set pre-render
+      _curX = _xCoord + _h;
+      
+      super.plot(pCanvas, pPxPerUnitX, pPxPerUnitY);
+      
+      if( _h != 0 )
+      {
+        drawSecant();
+      }
+    }
+    
+    private function drawSecant():void
+    {
+      if( _myParent == null )
+      {
+        return;
+      }
+      
+      var g:Graphics = _myParent.graphics;
+	     g.clear();
+	     
+	     if( !_show )
+	     {
+	       return;
+	     }
+	     
+	     if( _metrics == null )
+	     {
+	       g.lineStyle(1,0x000000);
+	     }
+	     else
+	     {
+	       g.lineStyle(_metrics.thickness, _metrics.color, _metrics.alpha);
+	     }
+	     
+      // get the two points on the secant line
+      var x1:Number = _curX - _h;
+      var x2:Number = _curX;
+      
+      var y1:Number = _derived.eval(x1);
+      var y2:Number = _derived.eval(x2);
+ 
+      // record current secant-line slope
+	     _m           = (y2-y1)/(x2-x1);
+	     var b:Number = y1 - _m*x1;
+	     if( isNaN(_m) )
+	     {
+	       if( b < _graphLeft || b > _graphRight )
+	       {
+	         return;
+	       }
+	       else
+	       {
+	         g.moveTo(b*_pxPerUnitX, -_graphTop*_pxPerUnitY  );
+	         g.lineTo(b*_pxPerUnitX, _graphBottom*_pxPerUnitY);
+	       }
+	     }
+	     else
+	     {
+	       // clip to allowable graph space
+	       if( Math.abs(_m) < 0.00000001 )
+	       {
+	         if( b > _graphTop || b < _graphBottom )
+	         {
+	           return;
+	         }
+	         else
+	         {
+	           g.moveTo(_graphLeft*_pxPerUnitX , -b*_pxPerUnitY);
+	           g.lineTo(_graphRight*_pxPerUnitX, -b*_pxPerUnitY);
+	         }
+	       }
+	       else
+	       {
+	         var left:Number           = _graphLeft;
+	         var right:Number          = _graphRight;
+	         var leftIntercept:Number  = _m*_graphLeft  + b;
+	         var rightIntercept:Number = _m*_graphRight + b;
+	       
+	         if( leftIntercept > _graphTop )
+	         {
+	           left          = (_graphTop - b)/_m;
+	           leftIntercept = _graphTop;
+	         }
+	         else if( leftIntercept < _graphBottom )
+	         {
+	           left          = (_graphBottom - b)/_m;
+	           leftIntercept = _graphBottom;
+	         }
+	         
+	         if( rightIntercept > _graphTop )
+	         {
+	           right          = (_graphTop - b)/_m;
+	           rightIntercept = _graphTop;
+	         }
+	         else if( rightIntercept < _graphBottom )
+	         {
+	           right          = (_graphBottom - b)/_m;
+	           rightIntercept = _graphBottom;
+	         }
+	         
+	         if( left < _graphLeft || right > _graphRight )
+	         {
+	           return;
+	         }
+	         
+	         g.moveTo(left*_pxPerUnitX , -leftIntercept*_pxPerUnitY);
+	         g.lineTo(right*_pxPerUnitX, -rightIntercept*_pxPerUnitY);
+	       }
+	     }
+    }
+    
+    override protected function updateLabel(pText:String):void
+    {
+      _label.text  = pText;
+	     var w:Number = _label.width;
+	     var h:Number = _label.height;
+	           
+	     var g:Graphics = _rollOverBackground.graphics;
+	     g.clear();
+	     g.lineStyle(1,0x000000);
+	     g.beginFill(_rolloverColor);
+	     g.drawRect(0,0,w,h);
+	           
+	     _rollOverContainer.x = _marker.x - Math.round(0.5*w);
+	     _rollOverContainer.y = _marker.y - Math.round(0.5*_marker.height) - h - 4;
+    }
+    
+    override protected function mouseEnter(pEvent:MouseEvent):void
+    {
+      if( !_dragging )
+      {
+        var format:String = "(";
+        if( _curX < 0 )
+        {
+          format += MINUS;
+        }
+      
+        format += StringUtils.toDecimalPlaces(Math.abs(_curX), _digits, false);
+        format += ", ";
+        
+        var value:Number = _derived.eval(_curX);
+        if( value < 0 )
+        {
+          format += MINUS;
+        }
+      
+        format += StringUtils.toDecimalPlaces(Math.abs(value), _digits, false);
+        format += ")";
+        
+        updateLabel( format);
+        _rollOverContainer.visible = true;
+      
+        CursorManager.getInstance().setCursor(CursorEnum.GRAB_HAND);
+      }
+    }
+    
+    override protected function mouseLeave(pEvent:MouseEvent):void
+    {
+      _rollOverContainer.visible = false;
+      
+      if( !_dragging )
+      {
+        CursorManager.getInstance().clearCursor();
+      }
+    }
+    
+    override protected function mouseDown(pEvent:MouseEvent):void
+    {
+      // roll-over information is not visible during dragging
+      _rollOverContainer.visible = false;
+       
+      // record x-coordinate and target in function units at time mouse was pressed
+      _origX      = _curX;
+      _origTarget = _curX-_h;
+      
+      if( _stage == null )
+      {
+        _stage = _rollOverContainer.stage;
+      }
+      
+      if( _stage != null )
+      {
+        _origStageX = _stage.mouseX;
+	       _origStageY = _stage.mouseY;
+	       
+	       _dragging = true;
+	       _stage.addEventListener(MouseEvent.MOUSE_MOVE, mouseMove);
+	       _stage.addEventListener(MouseEvent.MOUSE_UP, mouseUp);
+	     }
+    }
+    
+    override protected function mouseMove(pEvent:MouseEvent):void
+    {
+      // is move valid, i.e. within visible graph boundary
+      if( _stage != null )
+      {
+        // mouse moved this many px
+        var dX:Number = _stage.mouseX - _origStageX;
+        
+        // new x-coordinate in function units
+        var newX:Number = _origX + dX/_pxPerUnitX;
+       
+        // proposed y-coordinate at the new x-coordinate
+        var newY:Number = _derived.eval(newX);
+        
+        // is this value both valid and within the visible graph boundary?
+        if( !isNaN(newY) )
+        {
+          if( newX > _graphLeft && newX < _graphRight )
+          {
+            if( newY < _graphTop && newY > _graphBottom )
+            {
+              // new move is valid - update everthing and inform all interested parties of new data
+              _curX     = newX;
+              _h        = _curX - _origTarget;
+              _marker.x = _curX*_pxPerUnitX;
+              _marker.y = -newY*_pxPerUnitY;
+              
+              if( _myParent != null )
+              {
+                if( _h != 0 )
+                {
+                  drawSecant();
+                }
+      
+                var event:MarkerEvent = new MarkerEvent(MARKER_CHANGED,true);
+                event.marker          = this;
+                _myParent.dispatchEvent( event );
+              }
+            }
+          }
+        }
+      }
+    }
+    
+    override protected function mouseUp(pEvent:MouseEvent):void
+    {
+      if( _stage != null )
+      {
+        _stage.removeEventListener(MouseEvent.MOUSE_MOVE, mouseMove);
+        _stage.removeEventListener(MouseEvent.MOUSE_UP, mouseUp);
+      }
+      
+      // apply snapping - tbd, is it allowable to snap off view as it's an easy pan to put the marker back in view??
+      if( _snap != 0 )
+      {
+        var myX:Number  = Math.round(_curX/_snap)*_snap;
+        var newY:Number = _derived.eval(myX);
+        
+        if( !isNaN(newY) )
+        {
+          _curX     = myX;
+          _h        = _curX - _origTarget;
+          _marker.x = _curX*_pxPerUnitX;
+          _marker.y = -newY*_pxPerUnitY;
+          
+          if( _myParent != null )
+          {
+            if( _h != 0 )
+            {
+              drawSecant();
+            }
+            
+            var event:MarkerEvent = new MarkerEvent(MARKER_CHANGED,true);
+            event.marker          = this;
+            _myParent.dispatchEvent( event );
+          }
+        }
+      }
+      
+      // is the mouse (approximately) over the marker?
+      var p:Point = new Point(_marker.x, _marker.y);
+      p           = _marker.localToGlobal(p);
+      p.x        -= _marker.x;
+      p.y        -= _marker.y;
+      
+      var pX:Number = _stage.mouseX;
+      var pY:Number = _stage.mouseY;
+      var w2:Number = 0.5*_marker.width;
+      var h2:Number = 0.5*_marker.height;
+      
+      var isOver:Boolean = false;
+      if( pX >= p.x-w2 && pX <= p.x+w2 )
+      {
+        isOver = pY >= p.y-h2 && pY <= p.y+h2;
+      }
+      
+      // if mouse is released over marker - leave dragging hand intact; otherwise deep-six it.
+      if( !isOver )
+      {
+        CursorManager.getInstance().clearCursor();
+      }
+      
+      _dragging = false;
+    }
+	 }
+}
