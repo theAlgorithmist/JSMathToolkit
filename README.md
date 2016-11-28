@@ -19,6 +19,8 @@ This is beta-quality code.  That means there will be bugs.  I've found and fixed
 
 Do not treat this code as production-quality but as a means to explore the solution to various problems in an environment where people prefer looking at code to lots of equations.  If you would like to see this code moved to a high-quality, production environment, then [please support the Typescript Math Toolkit Project].
 
+Please note that the code is provided 'as is'.  I do not have the bandwidth to support or answer questions about the code.  Thank you.
+
 
 ### Demos
 
